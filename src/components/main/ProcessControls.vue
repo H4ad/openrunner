@@ -86,7 +86,7 @@ async function toggleAutoRestart() {
       >
         <span
           class="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform"
-          :class="props.autoRestart ? 'translate-x-4' : 'translate-x-0.5'"
+          :class="props.autoRestart ? 'translate-x-[0.1rem]' : 'translate-x-[-0.8rem]'"
         ></span>
       </button>
     </div>
