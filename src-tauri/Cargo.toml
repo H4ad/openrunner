@@ -1,0 +1,42 @@
+[package]
+name = "openrunner"
+version = "0.1.0"
+description = "OpenRunner - Desktop process manager for local development"
+authors = []
+edition = "2021"
+
+[lib]
+name = "runner_ui_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-shell = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+sysinfo = "0.34"
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
+tauri-plugin-dialog = "2.6.0"
+rusqlite = { version = "0.31", features = ["bundled"] }
+which = "6"
+clap = { version = "4", features = ["derive"] }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_System_JobObjects",
+    "Win32_System_Threading",
+    "Win32_System_Console",
+] }
+
+[features]
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]

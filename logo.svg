@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e293b"/>
+      <stop offset="100%" style="stop-color:#0f172a"/>
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3b82f6"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Background -->
+  <rect x="32" y="32" width="448" height="448" rx="64" fill="url(#bgGradient)"/>
+  
+  <!-- Window Title Bar -->
+  <rect x="32" y="32" width="448" height="56" rx="64" fill="#334155"/>
+  <rect x="32" y="64" width="448" height="24" fill="#334155"/>
+  
+  <!-- Window Controls -->
+  <circle cx="72" cy="60" r="10" fill="#ef4444"/>
+  <circle cx="100" cy="60" r="10" fill="#f59e0b"/>
+  <circle cx="128" cy="60" r="10" fill="#10b981"/>
+  
+  <!-- Sidebar -->
+  <rect x="56" y="104" width="80" height="352" rx="12" fill="#1e293b"/>
+  <rect x="72" y="128" width="48" height="8" rx="4" fill="#475569"/>
+  <rect x="72" y="152" width="48" height="8" rx="4" fill="#475569"/>
+  <rect x="72" y="176" width="48" height="8" rx="4" fill="#475569"/>
+  
+  <!-- Main Content Area -->
+  <rect x="152" y="104" width="304" height="160" rx="12" fill="#1e293b"/>
+  
+  <!-- Chart Lines -->
+  <path d="M 176 224 L 220 200 L 264 208 L 308 176 L 352 184 L 396 152 L 420 160" 
+        fill="none" stroke="url(#accentGradient)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  
+  <!-- Chart Area Fill -->
+  <path d="M 176 224 L 220 200 L 264 208 L 308 176 L 352 184 L 396 152 L 420 160 L 420 240 L 176 240 Z" 
+        fill="url(#accentGradient)" opacity="0.2"/>
+  
+  <!-- Stats Boxes -->
+  <rect x="176" y="128" width="80" height="48" rx="8" fill="#0f172a"/>
+  <rect x="184" y="140" width="32" height="6" rx="3" fill="#64748b"/>
+  <rect x="184" y="156" width="48" height="10" rx="5" fill="#3b82f6"/>
+  
+  <rect x="272" y="128" width="80" height="48" rx="8" fill="#0f172a"/>
+  <rect x="280" y="140" width="32" height="6" rx="3" fill="#64748b"/>
+  <rect x="280" y="156" width="48" height="10" rx="5" fill="#10b981"/>
+  
+  <!-- Log Panel -->
+  <rect x="152" y="280" width="304" height="176" rx="12" fill="#1e293b"/>
+  
+  <!-- Log Lines -->
+  <rect x="176" y="304" width="120" height="6" rx="3" fill="#10b981"/>
+  <rect x="176" y="322" width="200" height="6" rx="3" fill="#64748b"/>
+  <rect x="176" y="340" width="180" height="6" rx="3" fill="#64748b"/>
+  <rect x="176" y="358" width="160" height="6" rx="3" fill="#64748b"/>
+  <rect x="176" y="376" width="140" height="6" rx="3" fill="#64748b"/>
+  
+  <!-- Play Button Overlay -->
+  <circle cx="400" cy="368" r="32" fill="url(#accentGradient)"/>
+  <path d="M 392 356 L 392 380 L 416 368 Z" fill="white"/>
+</svg>
