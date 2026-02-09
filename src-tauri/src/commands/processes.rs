@@ -52,6 +52,17 @@ pub async fn start_process(
     };
 
     let app_state: &AppState = &state;
+    let interactive = {
+        let config = state.config.lock().unwrap();
+        config
+            .groups
+            .iter()
+            .find(|g| g.id == group_id)
+            .and_then(|g| g.projects.iter().find(|p| p.id == project_id))
+            .map(|p| p.interactive)
+            .unwrap_or(false)
+    };
+
     process_manager::spawn_process(
         &app_handle,
         app_state,
@@ -61,6 +72,7 @@ pub async fn start_process(
         &env_vars,
         auto_restart,
         project_type,
+        interactive,
     )
 }
 
@@ -100,7 +112,7 @@ pub fn restart_process(
             }
         }
 
-        let (command, working_dir, env_vars, auto_restart, project_type) = {
+        let (command, working_dir, env_vars, auto_restart, project_type, interactive) = {
             let config = state_arc.config.lock().unwrap();
             let group = match config.groups.iter().find(|g| g.id == gid) {
                 Some(g) => g,
@@ -118,6 +130,7 @@ pub fn restart_process(
                 merged_env,
                 project.auto_restart,
                 project.project_type.clone(),
+                project.interactive,
             )
         };
 
@@ -130,6 +143,7 @@ pub fn restart_process(
             &env_vars,
             auto_restart,
             project_type,
+            interactive,
         );
     });
 
@@ -140,4 +154,23 @@ pub fn restart_process(
 pub fn get_all_statuses(state: State<'_, Arc<AppState>>) -> Result<Vec<ProcessInfo>, Error> {
     let infos = state.process_infos.lock().unwrap();
     Ok(infos.values().cloned().collect())
+}
+
+#[tauri::command]
+pub async fn write_to_process_stdin(
+    state: State<'_, Arc<AppState>>,
+    project_id: String,
+    data: String,
+) -> Result<(), Error> {
+    process_manager::write_to_process_stdin(&state, &project_id, &data)
+}
+
+#[tauri::command]
+pub async fn resize_pty(
+    state: State<'_, Arc<AppState>>,
+    project_id: String,
+    cols: u16,
+    rows: u16,
+) -> Result<(), Error> {
+    process_manager::resize_pty(&state, &project_id, cols, rows)
 }

@@ -28,6 +28,7 @@ clap = { version = "4", features = ["derive"] }
 dirs = "5"
 dialoguer = "0.11"
 notify = "8"
+portable-pty = "0.8"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

@@ -3,7 +3,8 @@ use crate::error::Error;
 use crate::models::{LogMessage, LogStream, ProcessInfo, ProcessStatus, ProjectType};
 use crate::platform::{create_platform_manager, PlatformProcessManager};
 use crate::state::{AppState, ManagedProcess};
-use std::io::Write;
+use portable_pty::{native_pty_system, CommandBuilder, PtySize};
+use std::io::{Read, Write};
 use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager};
@@ -36,6 +37,7 @@ pub fn spawn_process(
     env_vars: &std::collections::HashMap<String, String>,
     auto_restart: bool,
     project_type: ProjectType,
+    interactive: bool,
 ) -> Result<(), Error> {
     // Check if already running
     {
@@ -57,6 +59,71 @@ pub fn spawn_process(
         sessions.insert(project_id.to_string(), session_id.clone());
     }
 
+    // Clear log file for this project on fresh start (keep for backward compat)
+    let log_path = state.log_file_path(project_id);
+    let _ = std::fs::write(&log_path, b"");
+
+    if interactive {
+        // Spawn using PTY for interactive mode
+        spawn_interactive_process(
+            app_handle,
+            state,
+            project_id,
+            command,
+            working_dir,
+            env_vars,
+            session_id,
+            &log_path,
+        )?;
+    } else {
+        // Spawn using regular pipes for non-interactive mode
+        spawn_regular_process(
+            app_handle,
+            state,
+            project_id,
+            command,
+            working_dir,
+            env_vars,
+            session_id,
+            &log_path,
+        )?;
+    }
+
+    // Spawn exit watcher
+    let app = app_handle.clone();
+    let project_id_owned = project_id.to_string();
+    let command_owned = command.to_string();
+    let working_dir_owned = working_dir.to_string();
+    let env_vars_owned = env_vars.clone();
+
+    tauri::async_runtime::spawn(async move {
+        watch_exit(
+            &app,
+            &project_id_owned,
+            &command_owned,
+            &working_dir_owned,
+            &env_vars_owned,
+            auto_restart,
+            project_type,
+            interactive,
+        )
+        .await;
+    });
+
+    Ok(())
+}
+
+/// Spawn a regular (non-interactive) process using pipes
+fn spawn_regular_process(
+    app_handle: &AppHandle,
+    state: &AppState,
+    project_id: &str,
+    command: &str,
+    working_dir: &str,
+    env_vars: &std::collections::HashMap<String, String>,
+    session_id: String,
+    log_path: &std::path::Path,
+) -> Result<(), Error> {
     // Get the platform shell command
     let (shell, shell_args) = get_platform_manager().get_shell_command();
     let shell_flag = shell_args[0];
@@ -86,15 +153,11 @@ pub fn spawn_process(
         state.save_pid(p);
     }
 
-    // Clear log file for this project on fresh start (keep for backward compat)
-    let log_path = state.log_file_path(project_id);
-    let _ = std::fs::write(&log_path, b"");
-
     // Set up stdout reader
     if let Some(stdout) = child.stdout.take() {
         let app = app_handle.clone();
         let pid_str = project_id.to_string();
-        let log_path_clone = log_path.clone();
+        let log_path_clone = log_path.to_path_buf();
         let sid = session_id.clone();
         tauri::async_runtime::spawn(async move {
             read_stream(stdout, &app, &pid_str, LogStream::Stdout, &log_path_clone, &sid).await;
@@ -105,7 +168,7 @@ pub fn spawn_process(
     if let Some(stderr) = child.stderr.take() {
         let app = app_handle.clone();
         let pid_str = project_id.to_string();
-        let log_path_clone = log_path.clone();
+        let log_path_clone = log_path.to_path_buf();
         let sid = session_id.clone();
         tauri::async_runtime::spawn(async move {
             read_stream(stderr, &app, &pid_str, LogStream::Stderr, &log_path_clone, &sid).await;
@@ -121,6 +184,10 @@ pub fn spawn_process(
                 child,
                 manually_stopped: false,
                 session_id: Some(session_id),
+                pty_master: None,
+                pty_writer: None,
+                is_interactive: false,
+                real_pid: pid,
             },
         );
     }
@@ -143,25 +210,161 @@ pub fn spawn_process(
     // Emit status update
     emit_status_update(app_handle, project_id, ProcessStatus::Running, pid);
 
-    // Spawn exit watcher
-    let app = app_handle.clone();
-    let project_id_owned = project_id.to_string();
-    let command_owned = command.to_string();
-    let working_dir_owned = working_dir.to_string();
-    let env_vars_owned = env_vars.clone();
+    Ok(())
+}
 
-    tauri::async_runtime::spawn(async move {
-        watch_exit(
-            &app,
-            &project_id_owned,
-            &command_owned,
-            &working_dir_owned,
-            &env_vars_owned,
-            auto_restart,
-            project_type,
-        )
-        .await;
+/// Spawn an interactive process using PTY
+fn spawn_interactive_process(
+    app_handle: &AppHandle,
+    state: &AppState,
+    project_id: &str,
+    command: &str,
+    working_dir: &str,
+    env_vars: &std::collections::HashMap<String, String>,
+    session_id: String,
+    log_path: &std::path::Path,
+) -> Result<(), Error> {
+    // Get the native PTY system
+    let pty_system = native_pty_system();
+
+    // Open a PTY with default size
+    let pty_pair = pty_system
+        .openpty(PtySize {
+            rows: 24,
+            cols: 80,
+            pixel_width: 0,
+            pixel_height: 0,
+        })
+        .map_err(|e| Error::SpawnError(format!("Failed to open PTY: {}", e)))?;
+
+    // Build the command
+    let mut cmd_builder = CommandBuilder::new("sh");
+    cmd_builder.arg("-c");
+    cmd_builder.arg(command);
+    cmd_builder.cwd(std::path::PathBuf::from(working_dir));
+
+    // Add environment variables
+    for (key, value) in env_vars {
+        cmd_builder.env(key, value);
+    }
+
+    // Force color output
+    cmd_builder.env("FORCE_COLOR", "1");
+    cmd_builder.env("CLICOLOR_FORCE", "1");
+    cmd_builder.env("TERM", "xterm-256color");
+
+    // Spawn the command in the PTY slave
+    let child = pty_pair
+        .slave
+        .spawn_command(cmd_builder)
+        .map_err(|e| Error::SpawnError(format!("Failed to spawn PTY command: {}", e)))?;
+
+    let pid = child.process_id().map(|p| p as u32);
+
+    // Save the PID to disk for orphan cleanup on restart
+    if let Some(p) = pid {
+        state.save_pid(p);
+    }
+
+    // Clone the master for reading and get writer
+    let reader = pty_pair
+        .master
+        .try_clone_reader()
+        .map_err(|e| Error::SpawnError(format!("Failed to clone PTY reader: {}", e)))?;
+    
+    let writer = pty_pair
+        .master
+        .take_writer()
+        .map_err(|e| Error::SpawnError(format!("Failed to get PTY writer: {}", e)))?;
+
+    // Set up reader for PTY output
+    let app = app_handle.clone();
+    let pid_str = project_id.to_string();
+    let log_path_clone = log_path.to_path_buf();
+    let sid = session_id.clone();
+
+    std::thread::spawn(move || {
+        let mut reader = reader;
+        let mut buf = [0u8; 4096];
+        loop {
+            match reader.read(&mut buf) {
+                Ok(0) => break,
+                Ok(n) => {
+                    let data = String::from_utf8_lossy(&buf[..n]).to_string();
+                    let timestamp = SystemTime::now()
+                        .duration_since(UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_millis() as u64;
+
+                    // Append to log file
+                    if let Ok(mut file) = std::fs::OpenOptions::new()
+                        .create(true)
+                        .append(true)
+                        .open(&log_path_clone)
+                    {
+                        let _ = file.write_all(data.as_bytes());
+                    }
+
+                    // Write to SQLite
+                    let state = app.state::<Arc<AppState>>();
+                    if let Ok(db) = state.db.lock() {
+                        let _ = database::insert_log(&db, &sid, "stdout", &data, timestamp);
+                    }
+
+                    let msg = LogMessage {
+                        project_id: pid_str.clone(),
+                        stream: LogStream::Stdout,
+                        data,
+                        timestamp,
+                    };
+
+                    let _ = app.emit("process-log", &msg);
+                }
+                Err(_) => break,
+            }
+        }
     });
+
+    // Store process with PTY master
+    {
+        let mut processes = state.processes.lock().unwrap();
+        processes.insert(
+            project_id.to_string(),
+            ManagedProcess {
+                child: {
+                    // Create a dummy child for compatibility
+                    // The actual process is managed by the PTY
+                    let mut dummy_cmd = Command::new("echo");
+                    dummy_cmd.arg("pty-process");
+                    dummy_cmd.spawn().unwrap()
+                },
+                manually_stopped: false,
+                session_id: Some(session_id),
+                pty_master: Some(pty_pair.master),
+                pty_writer: Some(writer),
+                is_interactive: true,
+                real_pid: pid,
+            },
+        );
+    }
+
+    // Update process info
+    {
+        let mut infos = state.process_infos.lock().unwrap();
+        infos.insert(
+            project_id.to_string(),
+            ProcessInfo {
+                project_id: project_id.to_string(),
+                status: ProcessStatus::Running,
+                pid,
+                cpu_usage: 0.0,
+                memory_usage: 0,
+            },
+        );
+    }
+
+    // Emit status update
+    emit_status_update(app_handle, project_id, ProcessStatus::Running, pid);
 
     Ok(())
 }
@@ -226,16 +429,42 @@ async fn watch_exit(
     env_vars: &std::collections::HashMap<String, String>,
     auto_restart: bool,
     project_type: ProjectType,
+    interactive: bool,
 ) {
     let state = app_handle.state::<Arc<AppState>>();
+    let platform = get_platform_manager();
 
     // Wait for process to exit
-    let (manually_stopped, exit_success, session_id, pid) = {
+    let (manually_stopped, exit_success, session_id, pid, _is_interactive) = {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
             let mut processes = state.processes.lock().unwrap();
             if let Some(managed) = processes.get_mut(project_id) {
+                let is_interactive = managed.is_interactive;
+                
+                // For PTY processes, check if the real process is still running
+                if is_interactive {
+                    if managed.manually_stopped {
+                        let session_id = managed.session_id.clone();
+                        let pid = managed.real_pid;
+                        processes.remove(project_id);
+                        break (true, true, session_id, pid, true);
+                    }
+                    // Check if the real PTY process is still running
+                    if let Some(real_pid) = managed.real_pid {
+                        if !platform.is_process_running(real_pid) {
+                            // Process has exited
+                            let session_id = managed.session_id.clone();
+                            processes.remove(project_id);
+                            break (false, true, session_id, Some(real_pid), true);
+                        }
+                    }
+                    // Continue waiting for PTY processes
+                    drop(processes);
+                    continue;
+                }
+                
                 match managed.child.try_wait() {
                     Ok(Some(status)) => {
                         let manually_stopped = managed.manually_stopped;
@@ -243,7 +472,7 @@ async fn watch_exit(
                         let session_id = managed.session_id.clone();
                         let pid = managed.child.id();
                         processes.remove(project_id);
-                        break (manually_stopped, exit_success, session_id, pid);
+                        break (manually_stopped, exit_success, session_id, pid, false);
                     }
                     Ok(None) => continue,
                     Err(_) => {
@@ -251,7 +480,7 @@ async fn watch_exit(
                         let session_id = managed.session_id.clone();
                         let pid = managed.child.id();
                         processes.remove(project_id);
-                        break (manually_stopped, false, session_id, pid);
+                        break (manually_stopped, false, session_id, pid, false);
                     }
                 }
             } else {
@@ -336,6 +565,7 @@ async fn watch_exit(
                     env_vars,
                     auto_restart,
                     ProjectType::Service,
+                    interactive,
                 );
             }
         }
@@ -353,8 +583,15 @@ pub fn stop_process(state: &AppState, project_id: &str) -> Result<(), Error> {
 
     let platform = get_platform_manager();
 
+    // Use real_pid for PTY processes, child.id() for regular processes
+    let pid_to_kill = if managed.is_interactive {
+        managed.real_pid
+    } else {
+        managed.child.id()
+    };
+
     // Graceful shutdown
-    if let Some(pid) = managed.child.id() {
+    if let Some(pid) = pid_to_kill {
         platform.graceful_shutdown(pid);
 
         // Spawn a task to force kill after timeout
@@ -386,7 +623,14 @@ pub fn kill_all_processes(state: &AppState) {
             sessions.remove(project_id);
         }
 
-        if let Some(pid) = managed.child.id() {
+        // Use real_pid for PTY processes, child.id() for regular processes
+        let pid_to_kill = if managed.is_interactive {
+            managed.real_pid
+        } else {
+            managed.child.id()
+        };
+
+        if let Some(pid) = pid_to_kill {
             platform.force_kill(pid);
         }
     }
@@ -402,16 +646,23 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     let platform = get_platform_manager();
 
     // Collect all running process info
-    let process_info: Vec<(String, Option<u32>, Option<String>)> = {
+    let process_info: Vec<(String, Option<u32>, Option<String>, bool)> = {
         let mut processes = state.processes.lock().unwrap();
         processes
             .iter_mut()
             .map(|(project_id, managed)| {
                 managed.manually_stopped = true;
+                // Use real_pid for PTY processes, child.id() for regular processes
+                let pid = if managed.is_interactive {
+                    managed.real_pid
+                } else {
+                    managed.child.id()
+                };
                 (
                     project_id.clone(),
-                    managed.child.id(),
+                    pid,
                     managed.session_id.clone(),
+                    managed.is_interactive,
                 )
             })
             .collect()
@@ -422,12 +673,12 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     }
 
     // Update UI to show "stopping" status for all processes
-    for (project_id, pid, _) in &process_info {
+    for (project_id, pid, _, _) in &process_info {
         emit_status_update(app_handle, project_id, ProcessStatus::Stopping, *pid);
     }
 
     // Send graceful shutdown to all processes
-    for (_, pid, _) in &process_info {
+    for (_, pid, _, _) in &process_info {
         if let Some(p) = pid {
             platform.graceful_shutdown(*p);
         }
@@ -446,15 +697,29 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
             let mut to_remove = Vec::new();
 
             for (project_id, managed) in processes.iter_mut() {
-                match managed.child.try_wait() {
-                    Ok(Some(_)) => {
+                if managed.is_interactive {
+                    // For PTY processes, check if the real process is still running
+                    if let Some(real_pid) = managed.real_pid {
+                        if !platform.is_process_running(real_pid) {
+                            to_remove.push(project_id.clone());
+                        } else {
+                            all_done = false;
+                        }
+                    } else {
                         to_remove.push(project_id.clone());
                     }
-                    Ok(None) => {
-                        all_done = false;
-                    }
-                    Err(_) => {
-                        to_remove.push(project_id.clone());
+                } else {
+                    // For regular processes, use try_wait
+                    match managed.child.try_wait() {
+                        Ok(Some(_)) => {
+                            to_remove.push(project_id.clone());
+                        }
+                        Ok(None) => {
+                            all_done = false;
+                        }
+                        Err(_) => {
+                            to_remove.push(project_id.clone());
+                        }
                     }
                 }
             }
@@ -472,7 +737,7 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     }
 
     // Force kill any remaining processes
-    for (_, pid, _) in &process_info {
+    for (_, pid, _, _) in &process_info {
         if let Some(p) = pid {
             if platform.is_process_running(*p) {
                 platform.force_kill(*p);
@@ -481,7 +746,7 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     }
 
     // End all sessions in SQLite
-    for (project_id, _, session_id) in &process_info {
+    for (project_id, _, session_id, _) in &process_info {
         if let Some(sid) = session_id {
             if let Ok(db) = state.db.lock() {
                 let _ = database::end_session(&db, sid, "stopped");
@@ -519,4 +784,52 @@ fn emit_status_update(
         memory_usage: 0,
     };
     let _ = app_handle.emit("process-status-changed", &info);
+}
+
+pub fn write_to_process_stdin(
+    state: &AppState,
+    project_id: &str,
+    data: &str,
+) -> Result<(), Error> {
+    use std::io::Write;
+    let mut processes = state.processes.lock().unwrap();
+
+    let managed = processes
+        .get_mut(project_id)
+        .ok_or_else(|| Error::ProcessNotRunning(project_id.to_string()))?;
+
+    if let Some(ref mut pty_writer) = managed.pty_writer {
+        pty_writer
+            .write_all(data.as_bytes())
+            .map_err(|e| Error::IoError(e))?;
+        pty_writer.flush().map_err(|e| Error::IoError(e))?;
+    }
+
+    Ok(())
+}
+
+pub fn resize_pty(
+    state: &AppState,
+    project_id: &str,
+    cols: u16,
+    rows: u16,
+) -> Result<(), Error> {
+    let processes = state.processes.lock().unwrap();
+
+    let managed = processes
+        .get(project_id)
+        .ok_or_else(|| Error::ProcessNotRunning(project_id.to_string()))?;
+
+    if let Some(ref pty_master) = managed.pty_master {
+        pty_master
+            .resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            })
+            .map_err(|e| Error::PtyError(e.to_string()))?;
+    }
+
+    Ok(())
 }

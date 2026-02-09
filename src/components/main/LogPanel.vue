@@ -23,6 +23,7 @@ import {
 const props = defineProps<{
   projectId: string;
   groupId?: string;
+  interactive: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -157,7 +158,7 @@ async function setupTerminal() {
   if (!terminalRef.value) return;
 
   terminal = new Terminal({
-    disableStdin: true,
+    disableStdin: !props.interactive,
     scrollback: settingsStore.maxLogLines,
     fontSize: 13,
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
@@ -182,6 +183,32 @@ async function setupTerminal() {
   terminal.loadAddon(searchAddon);
 
   terminal.open(terminalRef.value);
+
+  // Enable PTY interaction if interactive mode
+  if (props.interactive) {
+    terminal.onData(async (data) => {
+      try {
+        await invoke("write_to_process_stdin", {
+          projectId: props.projectId,
+          data,
+        });
+      } catch {
+        // Process might not be running
+      }
+    });
+
+    terminal.onResize(async ({ cols, rows }) => {
+      try {
+        await invoke("resize_pty", {
+          projectId: props.projectId,
+          cols,
+          rows,
+        });
+      } catch {
+        // Process might not be running
+      }
+    });
+  }
 
   // Prevent terminal from capturing Ctrl+F
   terminal.attachCustomKeyEventHandler((e) => {
@@ -338,7 +365,10 @@ defineExpose({ clearTerminal });
 <template>
   <div class="flex-1 flex flex-col min-h-0">
     <div class="flex items-center justify-between px-3 py-1.5 border-b border-border">
-      <span class="text-xs text-muted-foreground uppercase tracking-wide">Output</span>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-muted-foreground uppercase tracking-wide">Output</span>
+        <span v-if="props.interactive" class="text-xs px-1.5 py-0.5 rounded bg-green-500/20 text-green-500 font-medium">PTY</span>
+      </div>
       <div class="flex items-center gap-2">
         <Button
           variant="ghost"

@@ -15,6 +15,7 @@ pub fn create_project(
     command: String,
     cwd: Option<String>,
     project_type: Option<ProjectType>,
+    interactive: Option<bool>,
 ) -> Result<Project, Error> {
     let project = Project {
         id: uuid::Uuid::new_v4().to_string(),
@@ -24,6 +25,7 @@ pub fn create_project(
         env_vars: HashMap::new(),
         cwd,
         project_type: project_type.unwrap_or_default(),
+        interactive: interactive.unwrap_or(false),
     };
 
     let mut config = state.config.lock().unwrap();
@@ -52,6 +54,7 @@ pub fn update_project(
     cwd: Option<String>,
     env_vars: Option<HashMap<String, String>>,
     project_type: Option<ProjectType>,
+    interactive: Option<bool>,
 ) -> Result<Project, Error> {
     let mut config = state.config.lock().unwrap();
 
@@ -85,6 +88,9 @@ pub fn update_project(
         }
         if let Some(project_type) = project_type {
             project.project_type = project_type;
+        }
+        if let Some(interactive) = interactive {
+            project.interactive = interactive;
         }
 
         project.clone()

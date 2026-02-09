@@ -1,5 +1,6 @@
 use crate::models::{AppConfig, ProcessInfo};
 use crate::platform::{create_platform_manager, PlatformProcessManager};
+use portable_pty::MasterPty;
 use std::collections::HashMap;
 use std::io::{BufRead, Write};
 use std::path::PathBuf;
@@ -10,6 +11,27 @@ pub struct ManagedProcess {
     pub child: Child,
     pub manually_stopped: bool,
     pub session_id: Option<String>,
+    /// PTY master for interactive processes (optional)
+    pub pty_master: Option<Box<dyn MasterPty + Send>>,
+    /// PTY writer for sending input to interactive processes (optional)
+    pub pty_writer: Option<Box<dyn Write + Send>>,
+    /// Whether this process uses PTY for interactive mode
+    pub is_interactive: bool,
+    /// The actual process ID (for PTY processes, this is different from child.id())
+    pub real_pid: Option<u32>,
+}
+
+/// Size of the PTY terminal (rows x columns)
+#[derive(Debug, Clone, Copy, Default)]
+pub struct PtyDimensions {
+    pub rows: u16,
+    pub cols: u16,
+}
+
+impl PtyDimensions {
+    pub fn new(rows: u16, cols: u16) -> Self {
+        Self { rows, cols }
+    }
 }
 
 pub struct AppState {
@@ -95,6 +117,7 @@ impl AppState {
     }
 
     /// Get platform manager
+    #[allow(dead_code)]
     pub fn platform(&self) -> &dyn PlatformProcessManager {
         self.platform_manager.as_ref()
     }
@@ -108,7 +131,14 @@ impl Drop for AppState {
         // First, kill any processes we're currently managing
         if let Ok(processes) = self.processes.lock() {
             for managed in processes.values() {
-                if let Some(pid) = managed.child.id() {
+                // Use real_pid for PTY processes, child.id() for regular processes
+                let pid_to_kill = if managed.is_interactive {
+                    managed.real_pid
+                } else {
+                    managed.child.id()
+                };
+
+                if let Some(pid) = pid_to_kill {
                     self.platform_manager.force_kill(pid);
                 }
             }

@@ -76,6 +76,8 @@ pub fn run() {
             commands::processes::stop_process,
             commands::processes::restart_process,
             commands::processes::get_all_statuses,
+            commands::processes::write_to_process_stdin,
+            commands::processes::resize_pty,
             commands::settings::get_settings,
             commands::settings::update_settings,
             commands::settings::get_storage_stats,

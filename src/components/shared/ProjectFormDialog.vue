@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { FileTextIcon, PlusIcon, Cross1Icon } from "@radix-icons/vue";
 
 const props = defineProps<{
@@ -30,6 +31,7 @@ const props = defineProps<{
   cwd?: string;
   envVars?: Record<string, string>;
   projectType?: ProjectType;
+  interactive?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -39,6 +41,7 @@ const emit = defineEmits<{
     cwd: string | undefined,
     envVars: Record<string, string>,
     projectType: ProjectType,
+    interactive: boolean,
   ];
   cancel: [];
 }>();
@@ -47,6 +50,7 @@ const nameValue = ref("");
 const commandValue = ref("");
 const cwdValue = ref("");
 const projectTypeValue = ref<ProjectType>("service");
+const interactiveValue = ref(false);
 const envRows = ref<{ key: string; value: string }[]>([]);
 
 watch(
@@ -57,6 +61,7 @@ watch(
       commandValue.value = props.command ?? "";
       cwdValue.value = props.cwd ?? "";
       projectTypeValue.value = props.projectType ?? "service";
+      interactiveValue.value = props.interactive ?? false;
       const entries = Object.entries(props.envVars ?? {});
       envRows.value =
         entries.length > 0
@@ -101,6 +106,7 @@ function submit() {
     cwdValue.value.trim() || undefined,
     envVarsResult,
     projectTypeValue.value,
+    interactiveValue.value,
   );
 }
 
@@ -148,6 +154,14 @@ function handleOpenChange(open: boolean) {
               <SelectItem value="task">Task</SelectItem>
             </SelectContent>
           </Select>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <Checkbox id="interactive" v-model="interactiveValue" />
+          <Label for="interactive" class="text-sm font-normal cursor-pointer">
+            Interactive Terminal (PTY)
+            <span class="text-muted-foreground text-xs ml-1">(for TUI apps like vim, htop, claude code)</span>
+          </Label>
         </div>
 
         <div class="space-y-2">

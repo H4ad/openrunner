@@ -514,7 +514,8 @@ pub fn execute_new(
             auto_restart: false,
             env_vars: HashMap::new(),
             cwd: Some(directory_str.clone()),
-            project_type: ProjectType::Service
+            project_type: ProjectType::Service,
+            interactive: false,
         })
         .collect();
 

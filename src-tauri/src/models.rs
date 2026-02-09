@@ -49,6 +49,8 @@ pub struct Project {
     pub cwd: Option<String>,
     #[serde(default)]
     pub project_type: ProjectType,
+    #[serde(default)]
+    pub interactive: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

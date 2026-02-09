@@ -143,6 +143,7 @@ async function handleEdit(
   cwd?: string,
   envVars?: Record<string, string>,
   projectType?: string,
+  interactive: boolean = false,
 ) {
   await config.updateProject(props.group.id, props.project.id, {
     name,
@@ -150,6 +151,7 @@ async function handleEdit(
     cwd: cwd || null,
     envVars: envVars ?? {},
     projectType: (projectType || 'service') as ProjectType,
+    interactive,
   });
   showEditDialog.value = false;
 }
@@ -311,7 +313,12 @@ async function handleDelete() {
       :project-name="props.project.name"
       @close="showSessions = false"
     />
-    <LogPanel v-else :project-id="props.project.id" :group-id="props.group.id" />
+    <LogPanel
+      v-else
+      :project-id="props.project.id"
+      :group-id="props.group.id"
+      :interactive="props.project.interactive"
+    />
 
     <!-- Dialogs -->
     <ProjectFormDialog
@@ -322,6 +329,7 @@ async function handleDelete() {
       :cwd="props.project.cwd ?? undefined"
       :env-vars="props.project.envVars"
       :project-type="props.project.projectType"
+      :interactive="props.project.interactive"
       @confirm="handleEdit"
       @cancel="showEditDialog = false"
     />

@@ -62,6 +62,7 @@ export const useConfigStore = defineStore("config", () => {
     command: string,
     cwd?: string,
     projectType?: ProjectType,
+    interactive?: boolean,
   ): Promise<Project> {
     const project = await invoke<Project>("create_project", {
       groupId,
@@ -69,6 +70,7 @@ export const useConfigStore = defineStore("config", () => {
       command,
       cwd: cwd || null,
       projectType: projectType || "service",
+      interactive: interactive ?? false,
     });
     const group = groups.value.find((g) => g.id === groupId);
     if (group) group.projects.push(project);
@@ -85,6 +87,7 @@ export const useConfigStore = defineStore("config", () => {
       envVars?: Record<string, string>;
       cwd?: string | null;
       projectType?: ProjectType;
+      interactive?: boolean;
     },
   ) {
     const updated = await invoke<Project>("update_project", {

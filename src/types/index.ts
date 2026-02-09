@@ -8,6 +8,7 @@ export interface Project {
   envVars: Record<string, string>;
   cwd: string | null;
   projectType: ProjectType;
+  interactive: boolean;
 }
 
 export interface Group {
