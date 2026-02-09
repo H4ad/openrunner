@@ -11,6 +11,14 @@ import { useSettingsStore } from "../../stores/settings";
 import type { LogMessage } from "../../types";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  MagnifyingGlassIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  Cross1Icon,
+} from "@radix-icons/vue";
 
 const props = defineProps<{
   projectId: string;
@@ -154,10 +162,10 @@ async function setupTerminal() {
     fontSize: 13,
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     theme: {
-      background: "#111827",
-      foreground: "#d1d5db",
-      cursor: "#d1d5db",
-      selectionBackground: "#374151",
+      background: "hsl(var(--background))",
+      foreground: "hsl(var(--foreground))",
+      cursor: "hsl(var(--foreground))",
+      selectionBackground: "hsl(var(--accent))",
     },
     convertEol: true,
   });
@@ -191,14 +199,13 @@ async function setupTerminal() {
       if (!line) { callback(undefined); return; }
       const lineText = line.translateToString();
 
-      // Match file paths with optional line:col - e.g. src/main.ts:42:10 or /home/user/file.rs:5
+      // Match file paths with optional line:col
       const FILE_EXTS = "(?:ts|tsx|js|jsx|vue|rs|py|go|java|kt|rb|c|cpp|h|hpp|cs|swift|json|yaml|yml|toml|css|scss|html|xml|sql|sh|bash|zsh|md|txt|log|cfg|conf|ini|env)";
       const filePattern = new RegExp(
-        `(?:^|[\\s('"\\[])(((?:\\./|\\.\\./)(?:[\\w.-]+/)*[\\w.-]+\\.${FILE_EXTS}|/(?:[\\w.-]+/)+[\\w.-]+\\.${FILE_EXTS}|(?:[a-zA-Z][\\w.-]*/)(?:[\\w.-]+/)*[\\w.-]+\\.${FILE_EXTS}))(?::(\\d+))?(?::(\\d+))?`,
+        `(?:^|[\s('"\\[\[])(((?:\./|\.\./)(?:[\w.-]+/)*[\w.-]+\.${FILE_EXTS}|/(?:[\w.-]+/)+[\w.-]+\.${FILE_EXTS}|(?:[a-zA-Z][\w.-]*/)(?:[\w.-]+/)*[\w.-]+\.${FILE_EXTS}))(?::(\d+))?(?::(\d+))?`,
         "g",
       );
-      // Match absolute directory paths (e.g., /home/user/project)
-      const dirPattern = /(?:^|[\s('"[])((\/(?:[\w.-]+\/)+[\w.-]+))(?=[\s)'":\],$]|$)/g;
+      const dirPattern = /(?:^|[\s('"[\[])((\/(?:[\w.-]+\/)+[\w.-]+))(?=[\s)'":\],$]|$)/g;
 
       const links: Array<{ range: { start: { x: number; y: number }; end: { x: number; y: number } }; text: string; activate: () => void }> = [];
       const usedRanges: Array<{ start: number; end: number }> = [];
@@ -330,64 +337,48 @@ defineExpose({ clearTerminal });
 
 <template>
   <div class="flex-1 flex flex-col min-h-0">
-    <div class="flex items-center justify-between px-3 py-1.5 border-b border-gray-700">
-      <span class="text-xs text-gray-400 uppercase tracking-wide">Output</span>
+    <div class="flex items-center justify-between px-3 py-1.5 border-b border-border">
+      <span class="text-xs text-muted-foreground uppercase tracking-wide">Output</span>
       <div class="flex items-center gap-2">
-        <button
-          class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-6 w-6"
           title="Search (Ctrl+F)"
           @click="toggleSearch"
         >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
-        <button
-          class="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          <MagnifyingGlassIcon class="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="sm"
+          class="text-xs h-6"
           @click="clearTerminal"
         >
           Clear
-        </button>
+        </Button>
       </div>
     </div>
 
     <!-- Search bar -->
-    <div v-if="showSearch" class="flex items-center gap-2 px-3 py-1.5 border-b border-gray-700 bg-gray-800">
-      <input
+    <div v-if="showSearch" class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted">
+      <Input
         ref="searchInputRef"
         v-model="searchQuery"
         placeholder="Search..."
-        class="flex-1 px-2 py-1 bg-gray-900 border border-gray-600 rounded text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+        class="flex-1 h-7 text-xs"
         @input="onSearchInput"
         @keydown="onSearchKeydown"
       />
-      <button
-        class="p-1 text-gray-400 hover:text-gray-200 transition-colors"
-        title="Previous (Shift+Enter)"
-        @click="findPrevious"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-        </svg>
-      </button>
-      <button
-        class="p-1 text-gray-400 hover:text-gray-200 transition-colors"
-        title="Next (Enter)"
-        @click="findNext"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      <button
-        class="p-1 text-gray-400 hover:text-gray-200 transition-colors"
-        title="Close"
-        @click="toggleSearch"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      <Button variant="ghost" size="icon" class="h-7 w-7" title="Previous (Shift+Enter)" @click="findPrevious">
+        <ChevronUpIcon class="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" class="h-7 w-7" title="Next (Enter)" @click="findNext">
+        <ChevronDownIcon class="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" class="h-7 w-7" title="Close" @click="toggleSearch">
+        <Cross1Icon class="h-3.5 w-3.5" />
+      </Button>
     </div>
 
     <div ref="terminalRef" class="flex-1 min-h-0 p-1"></div>

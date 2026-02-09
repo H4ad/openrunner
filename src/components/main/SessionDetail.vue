@@ -21,6 +21,16 @@ import {
 import { useSessionsStore } from "../../stores/sessions";
 import { useUiStore } from "../../stores/ui";
 import type { MetricPoint } from "../../types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  ArrowLeftIcon,
+  ActivityLogIcon,
+  MagnifyingGlassIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  Cross1Icon,
+} from "@radix-icons/vue";
 
 ChartJS.register(
   CategoryScale,
@@ -238,10 +248,10 @@ async function setupTerminal() {
     fontSize: 13,
     fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
     theme: {
-      background: "#111827",
-      foreground: "#d1d5db",
-      cursor: "#d1d5db",
-      selectionBackground: "#374151",
+      background: "hsl(var(--background))",
+      foreground: "hsl(var(--foreground))",
+      cursor: "hsl(var(--foreground))",
+      selectionBackground: "hsl(var(--accent))",
     },
     convertEol: true,
   });
@@ -276,18 +286,15 @@ async function setupTerminal() {
       const lineText = line.translateToString();
 
       const FILE_EXTS = "(?:ts|tsx|js|jsx|vue|rs|py|go|java|kt|rb|c|cpp|h|hpp|cs|swift|json|yaml|yml|toml|css|scss|html|xml|sql|sh|bash|zsh|md|txt|log|cfg|conf|ini|env)";
-      // Match files with extensions (with optional line:col) OR absolute directory paths
       const filePattern = new RegExp(
-        `(?:^|[\\s('"\\[])(((?:\\./|\\.\\./)(?:[\\w.-]+/)*[\\w.-]+\\.${FILE_EXTS}|/(?:[\\w.-]+/)+[\\w.-]+\\.${FILE_EXTS}|(?:[a-zA-Z][\\w.-]*/)(?:[\\w.-]+/)*[\\w.-]+\\.${FILE_EXTS}))(?::(\\d+))?(?::(\\d+))?`,
+        `(?:^[\s('"\\[\[])(((?:\./|\.\./)(?:[\w.-]+/)*[\w.-]+\.${FILE_EXTS}|/(?:[\w.-]+/)+[\w.-]+\.${FILE_EXTS}|(?:[a-zA-Z][\w.-]*/)(?:[\w.-]+/)*[\w.-]+\.${FILE_EXTS}))(?::(\d+))?(?::(\d+))?`,
         "g",
       );
-      // Match absolute directory paths (e.g., /home/user/project)
-      const dirPattern = /(?:^|[\s('"[])((\/(?:[\w.-]+\/)+[\w.-]+))(?=[\s)'":\],$]|$)/g;
+      const dirPattern = /(?:^|[\s('"[\[])((\/(?:[\w.-]+\/)+[\w.-]+))(?=[\s)'":\],$]|$)/g;
 
       const links: Array<{ range: { start: { x: number; y: number }; end: { x: number; y: number } }; text: string; activate: () => void }> = [];
       const usedRanges: Array<{ start: number; end: number }> = [];
 
-      // Match file paths with extensions
       let match;
       while ((match = filePattern.exec(lineText)) !== null) {
         const fullMatch = match[0];
@@ -313,14 +320,12 @@ async function setupTerminal() {
         });
       }
 
-      // Match directory paths (avoid overlapping with file paths)
       while ((match = dirPattern.exec(lineText)) !== null) {
         const fullMatch = match[0];
         const dirPath = match[1];
         const matchStart = match.index + fullMatch.indexOf(dirPath);
         const matchEnd = matchStart + dirPath.length;
 
-        // Skip if overlaps with a file path
         const overlaps = usedRanges.some(
           (r) => (matchStart >= r.start && matchStart < r.end) || (matchEnd > r.start && matchEnd <= r.end),
         );
@@ -390,38 +395,33 @@ onUnmounted(() => {
 
 <template>
   <div class="flex-1 flex flex-col h-full min-h-0">
-    <div class="p-4 border-b border-gray-700 flex items-center gap-3">
-      <button
-        class="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-        @click="ui.backToProject()"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <h2 class="text-lg font-semibold text-gray-100">Session Logs</h2>
-      <span v-if="loading" class="text-xs text-gray-500">Loading...</span>
+    <div class="p-4 border-b border-border flex items-center gap-3">
+      <Button variant="ghost" size="icon" class="h-8 w-8" @click="ui.backToProject()">
+        <ArrowLeftIcon class="h-4 w-4" />
+      </Button>
+      <h2 class="text-lg font-semibold text-foreground">Session Logs</h2>
+      <span v-if="loading" class="text-xs text-muted-foreground">Loading...</span>
       <div class="ml-auto flex items-center gap-2">
-        <button
+        <Button
           v-if="metrics.length > 0"
-          class="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-          :class="showCharts ? 'bg-gray-700 text-gray-200' : ''"
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8"
+          :class="showCharts ? 'bg-accent text-accent-foreground' : ''"
           title="Toggle Charts"
           @click="showCharts = !showCharts"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </button>
-        <button
-          class="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
+          <ActivityLogIcon class="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-8 w-8"
           title="Search (Ctrl+F)"
           @click="toggleSearch"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-        </button>
+          <MagnifyingGlassIcon class="h-4 w-4" />
+        </Button>
       </div>
     </div>
 
@@ -444,42 +444,24 @@ onUnmounted(() => {
     </div>
 
     <!-- Search bar -->
-    <div v-if="showSearch" class="flex items-center gap-2 px-3 py-1.5 border-b border-gray-700 bg-gray-800">
-      <input
+    <div v-if="showSearch" class="flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted">
+      <Input
         ref="searchInputRef"
         v-model="searchQuery"
         placeholder="Search..."
-        class="flex-1 px-2 py-1 bg-gray-900 border border-gray-600 rounded text-gray-100 text-xs focus:outline-none focus:border-blue-500"
+        class="flex-1 h-7 text-xs"
         @input="onSearchInput"
         @keydown="onSearchKeydown"
       />
-      <button
-        class="p-1 text-gray-400 hover:text-gray-200 transition-colors"
-        title="Previous (Shift+Enter)"
-        @click="findPrevious"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" />
-        </svg>
-      </button>
-      <button
-        class="p-1 text-gray-400 hover:text-gray-200 transition-colors"
-        title="Next (Enter)"
-        @click="findNext"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </button>
-      <button
-        class="p-1 text-gray-400 hover:text-gray-200 transition-colors"
-        title="Close"
-        @click="toggleSearch"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      <Button variant="ghost" size="icon" class="h-7 w-7" title="Previous (Shift+Enter)" @click="findPrevious">
+        <ChevronUpIcon class="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" class="h-7 w-7" title="Next (Enter)" @click="findNext">
+        <ChevronDownIcon class="h-3.5 w-3.5" />
+      </Button>
+      <Button variant="ghost" size="icon" class="h-7 w-7" title="Close" @click="toggleSearch">
+        <Cross1Icon class="h-3.5 w-3.5" />
+      </Button>
     </div>
 
     <div ref="terminalRef" class="flex-1 min-h-0 p-1"></div>

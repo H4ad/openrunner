@@ -3,6 +3,10 @@ import { computed, ref } from "vue";
 import type { ProcessStatus } from "../../types";
 import { useProcessesStore } from "../../stores/processes";
 import { useConfigStore } from "../../stores/config";
+import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { PlayIcon, StopIcon, ReloadIcon } from "@radix-icons/vue";
 
 const props = defineProps<{
   projectId: string;
@@ -53,42 +57,45 @@ async function toggleAutoRestart() {
 
 <template>
   <div class="flex items-center gap-2 flex-wrap">
-    <button
+    <Button
       v-if="!isRunning"
-      class="px-3 py-1.5 text-xs rounded bg-green-600 text-white hover:bg-green-500 disabled:opacity-50 transition-colors"
+      size="sm"
       :disabled="loading"
       @click="start"
+      class="gap-1.5"
     >
+      <PlayIcon class="h-3.5 w-3.5" />
       Start
-    </button>
-    <button
+    </Button>
+    <Button
       v-if="isRunning"
-      class="px-3 py-1.5 text-xs rounded bg-red-600 text-white hover:bg-red-500 disabled:opacity-50 transition-colors"
+      variant="destructive"
+      size="sm"
       :disabled="loading"
       @click="stop"
+      class="gap-1.5"
     >
+      <StopIcon class="h-3.5 w-3.5" />
       Stop
-    </button>
-    <button
-      class="px-3 py-1.5 text-xs rounded bg-gray-600 text-white hover:bg-gray-500 disabled:opacity-50 transition-colors"
+    </Button>
+    <Button
+      variant="secondary"
+      size="sm"
       :disabled="loading"
       @click="restart"
+      class="gap-1.5"
     >
+      <ReloadIcon class="h-3.5 w-3.5" />
       Restart
-    </button>
+    </Button>
 
     <div class="ml-auto flex items-center gap-2">
-      <span class="text-xs text-gray-400">Auto-restart</span>
-      <button
-        class="relative w-8 h-4 rounded-full transition-colors"
-        :class="props.autoRestart ? 'bg-blue-600' : 'bg-gray-600'"
-        @click="toggleAutoRestart"
-      >
-        <span
-          class="absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform"
-          :class="props.autoRestart ? 'translate-x-[0.1rem]' : 'translate-x-[-0.8rem]'"
-        ></span>
-      </button>
+      <Label for="auto-restart" class="text-xs text-muted-foreground cursor-pointer">Auto-restart</Label>
+      <Switch
+        id="auto-restart"
+        :checked="props.autoRestart"
+        @update:checked="toggleAutoRestart"
+      />
     </div>
   </div>
 </template>

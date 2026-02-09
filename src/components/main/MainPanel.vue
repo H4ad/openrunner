@@ -10,7 +10,7 @@ const ui = useUiStore();
 </script>
 
 <template>
-  <div class="flex-1 flex flex-col h-full min-h-0 bg-gray-900">
+  <div class="flex-1 flex flex-col h-full min-h-0 bg-background">
     <SettingsPage v-if="ui.viewMode === 'settings'" />
     <GroupMonitor
       v-else-if="ui.viewMode === 'groupMonitor' && ui.selectedMonitorGroupId"

@@ -2,6 +2,25 @@
 import { ref, watch } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import type { ProjectType } from "../../types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { FileTextIcon, PlusIcon, Cross1Icon } from "@radix-icons/vue";
 
 const props = defineProps<{
   open: boolean;
@@ -29,7 +48,6 @@ const commandValue = ref("");
 const cwdValue = ref("");
 const projectTypeValue = ref<ProjectType>("service");
 const envRows = ref<{ key: string; value: string }[]>([]);
-const showEnvVars = ref(false);
 
 watch(
   () => props.open,
@@ -44,7 +62,6 @@ watch(
         entries.length > 0
           ? entries.map(([key, value]) => ({ key, value }))
           : [];
-      showEnvVars.value = envRows.value.length > 0;
     }
   },
 );
@@ -62,7 +79,6 @@ async function browseFolder() {
 
 function addEnvRow() {
   envRows.value.push({ key: "", value: "" });
-  showEnvVars.value = true;
 }
 
 function removeEnvRow(index: number) {
@@ -87,141 +103,137 @@ function submit() {
     projectTypeValue.value,
   );
 }
+
+function handleOpenChange(open: boolean) {
+  if (!open) {
+    emit("cancel");
+  }
+}
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="props.open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="emit('cancel')"
-    >
-      <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-[28rem] border border-gray-700">
-        <h3 class="text-lg font-semibold text-gray-100 mb-4">
-          {{ props.title }}
-        </h3>
-        <form @submit.prevent="submit">
-          <label class="block text-sm text-gray-400 mb-1">Project Name</label>
-          <input
+  <Dialog :open="props.open" @update:open="handleOpenChange">
+    <DialogContent class="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{{ props.title }}</DialogTitle>
+      </DialogHeader>
+      <form @submit.prevent="submit" class="space-y-4">
+        <div class="space-y-2">
+          <Label for="project-name">Project Name</Label>
+          <Input
+            id="project-name"
             v-model="nameValue"
             placeholder="My Project"
-            class="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500 mb-4"
             autofocus
           />
+        </div>
 
-          <label class="block text-sm text-gray-400 mb-1">Command</label>
-          <input
+        <div class="space-y-2">
+          <Label for="project-command">Command</Label>
+          <Input
+            id="project-command"
             v-model="commandValue"
             placeholder="npm run dev"
-            class="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500 mb-4"
           />
+        </div>
 
-          <label class="block text-sm text-gray-400 mb-1">Type</label>
-          <div class="flex gap-2 mb-4">
-            <button
-              type="button"
-              class="flex-1 px-3 py-2 text-sm rounded border transition-colors"
-              :class="projectTypeValue === 'service'
-                ? 'bg-blue-600 border-blue-600 text-white'
-                : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-gray-500'"
-              @click="projectTypeValue = 'service'"
-            >
-              Service
-            </button>
-            <button
-              type="button"
-              class="flex-1 px-3 py-2 text-sm rounded border transition-colors"
-              :class="projectTypeValue === 'task'
-                ? 'bg-blue-600 border-blue-600 text-white'
-                : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-gray-500'"
-              @click="projectTypeValue = 'task'"
-            >
-              Task
-            </button>
-          </div>
+        <div class="space-y-2">
+          <Label for="project-type">Type</Label>
+          <Select v-model="projectTypeValue">
+            <SelectTrigger id="project-type">
+              <SelectValue placeholder="Select type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="service">Service</SelectItem>
+              <SelectItem value="task">Task</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-          <label class="block text-sm text-gray-400 mb-1">
+        <div class="space-y-2">
+          <Label for="project-cwd">
             Working Directory
-            <span class="text-gray-600">(optional, relative to group)</span>
-          </label>
-          <div class="flex gap-2 mb-4">
-            <input
+            <span class="text-muted-foreground text-xs">(optional, relative to group)</span>
+          </Label>
+          <div class="flex gap-2">
+            <Input
+              id="project-cwd"
               v-model="cwdValue"
               placeholder="packages/my-app"
-              class="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+              class="flex-1"
             />
-            <button
+            <Button
               type="button"
-              class="px-2 py-2 text-xs rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors flex-shrink-0"
+              variant="outline"
+              size="icon"
               title="Browse folder"
               @click="browseFolder"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-            </button>
+              <FileTextIcon class="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <!-- Environment Variables -->
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <Label>Environment Variables</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="text-primary"
+              @click="addEnvRow"
+            >
+              <PlusIcon class="h-4 w-4 mr-1" />
+              Add
+            </Button>
           </div>
 
-          <!-- Environment Variables -->
-          <div class="mb-4">
-            <div class="flex items-center justify-between mb-1">
-              <label class="text-sm text-gray-400">Environment Variables</label>
-              <button
-                type="button"
-                class="text-xs text-blue-400 hover:text-blue-300 transition-colors"
-                @click="addEnvRow"
-              >
-                + Add
-              </button>
-            </div>
-            <div v-if="envRows.length > 0" class="space-y-2 max-h-32 overflow-y-auto">
+          <ScrollArea v-if="envRows.length > 0" class="h-32">
+            <div class="space-y-2 pr-4">
               <div
                 v-for="(row, index) in envRows"
                 :key="index"
-                class="flex items-center gap-2"
+                class="grid grid-cols-[1fr_1fr_auto] gap-2"
               >
-                <input
+                <Input
                   v-model="row.key"
                   placeholder="KEY"
-                  class="flex-1 px-2 py-1.5 bg-gray-900 border border-gray-600 rounded text-gray-100 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                  class="font-mono text-xs"
                 />
-                <input
+                <Input
                   v-model="row.value"
                   placeholder="value"
-                  class="flex-1 px-2 py-1.5 bg-gray-900 border border-gray-600 rounded text-gray-100 text-xs focus:outline-none focus:border-blue-500 font-mono"
+                  class="font-mono text-xs"
                 />
-                <button
+                <Button
                   type="button"
-                  class="p-0.5 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0"
+                  variant="ghost"
+                  size="icon"
+                  class="shrink-0 text-muted-foreground hover:text-destructive h-8 w-8"
                   @click="removeEnvRow(index)"
                 >
-                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                  <Cross1Icon class="h-3.5 w-3.5" />
+                </Button>
               </div>
             </div>
-            <p v-else class="text-xs text-gray-600">No environment variables set.</p>
-          </div>
+          </ScrollArea>
+          <p v-else class="text-xs text-muted-foreground">No environment variables set.</p>
+        </div>
 
-          <div class="flex justify-end gap-3">
-            <button
-              type="button"
-              class="px-4 py-2 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
-              @click="emit('cancel')"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors"
-              :disabled="!nameValue.trim() || !commandValue.trim()"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </Teleport>
+        <DialogFooter class="flex flex-row justify-end gap-2">
+          <Button type="button" variant="secondary" @click="emit('cancel')">
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            :disabled="!nameValue.trim() || !commandValue.trim()"
+          >
+            Save
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
 </template>
