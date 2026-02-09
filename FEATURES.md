@@ -16,6 +16,8 @@
 - Environment variables support per project (project-level overrides group-level)
 - Auto-restart toggle: automatically restart the process if it exits unexpectedly
 - Per-project CWD override for monorepo support (relative or absolute paths)
+- **Multi-selection**: Shift+click on projects to select a range
+- **Bulk operations**: Delete or convert multiple projects at once via right-click context menu
 
 ## Process Control
 - Start/Stop/Restart processes with dedicated buttons
@@ -105,12 +107,18 @@
 - Settings persisted to ~/.config/runner-ui/settings.json
 
 ## Data Persistence
-- Configuration saved to platform-specific app data directory (~/.config/runner-ui/config.json)
-- Settings saved to ~/.config/runner-ui/settings.json
-- SQLite database for logs, metrics, and sessions (~/.config/runner-ui/runner-ui.db)
+- **Unified config path**: CLI and UI both use `~/.config/openrunner/config.json` for shared configuration
+- Settings saved to `~/.config/runner-ui/settings.json`
+- SQLite database for logs, metrics, and sessions (`~/.local/share/openrunner/openrunner.db`)
 - Log files saved to temp directory (runner-ui-logs/) as backward-compatible fallback
 - Auto-saves after every configuration change
 - Loads saved configuration and settings on app startup
+
+## Config File Watching
+- File watcher monitors `~/.config/openrunner/config.json` for external changes
+- When config file is modified (e.g., via CLI `openrunner new` command), the UI automatically reloads
+- Changes made via CLI are immediately reflected in the running UI without restart
+- Debounced reload (100ms) to ensure complete file writes are captured
 
 ## Desktop Application
 - Built with Tauri 2 (Rust backend + Vue 3 frontend)

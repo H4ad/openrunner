@@ -1,5 +1,6 @@
 pub mod cli;
 mod commands;
+mod config_watcher;
 mod database;
 mod error;
 mod models;
@@ -42,7 +43,19 @@ pub fn run() {
             process_manager::kill_orphaned_processes(&state);
 
             // Start stats collector
-            stats_collector::start_collector(handle, state.clone());
+            stats_collector::start_collector(handle.clone(), state.clone());
+
+            // Start config file watcher
+            match config_watcher::start_config_watcher(handle.clone()) {
+                Ok(watcher) => {
+                    // Store the watcher in the app state to keep it alive
+                    // We need to add this to AppState
+                    app.manage(watcher);
+                }
+                Err(e) => {
+                    eprintln!("Failed to start config watcher: {}", e);
+                }
+            }
 
             app.manage(state);
             Ok(())
@@ -57,6 +70,8 @@ pub fn run() {
             commands::projects::create_project,
             commands::projects::update_project,
             commands::projects::delete_project,
+            commands::projects::delete_multiple_projects,
+            commands::projects::convert_multiple_projects,
             commands::processes::start_process,
             commands::processes::stop_process,
             commands::processes::restart_process,

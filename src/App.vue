@@ -38,7 +38,7 @@ function startResize(e: MouseEvent) {
 
 onMounted(async () => {
   await settingsStore.load();
-  await config.loadGroups();
+  await config.init();
   await processes.init();
   await logsStore.init();
 

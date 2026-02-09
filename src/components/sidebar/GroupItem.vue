@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
-import type { Group } from "../../types";
+import type { Group, ProjectType } from "../../types";
 import { useUiStore } from "../../stores/ui";
 import { useConfigStore } from "../../stores/config";
 import { useProcessesStore } from "../../stores/processes";
@@ -29,24 +29,65 @@ const runningCount = computed(
 
 const showContextMenu = ref(false);
 const contextMenuPos = ref({ x: 0, y: 0 });
+const showProjectContextMenu = ref(false);
+const projectContextMenuPos = ref({ x: 0, y: 0 });
 const showRenameDialog = ref(false);
 const showDeleteDialog = ref(false);
 const showAddProjectDialog = ref(false);
 const showEditDirectoryDialog = ref(false);
 const showEnvVarsDialog = ref(false);
+const showDeleteSelectedDialog = ref(false);
 
 const isExpanded = () => ui.isGroupExpanded(props.group.id);
+
+// Tab filtering
+const selectedTab = ref<"all" | "service" | "task">("service");
+
+const filteredProjects = computed(() => {
+  if (selectedTab.value === "all") {
+    return props.group.projects;
+  }
+  return props.group.projects.filter((p) => p.projectType === selectedTab.value);
+});
+
+const selectedProjectsInGroup = computed(() =>
+  ui.selectedProjects.filter((s) => s.groupId === props.group.id),
+);
+
+const selectedProjectIds = computed(() =>
+  selectedProjectsInGroup.value.map((s) => s.projectId),
+);
+
+const hasSelectedProjects = computed(() => selectedProjectIds.value.length > 0);
 
 function onContextMenu(e: MouseEvent) {
   e.preventDefault();
   contextMenuPos.value = { x: e.clientX, y: e.clientY };
   showContextMenu.value = true;
-
-  const closeMenu = () => {
+  document.addEventListener("click", () => {
     showContextMenu.value = false;
-    document.removeEventListener("click", closeMenu);
-  };
-  setTimeout(() => document.addEventListener("click", closeMenu), 0);
+  }, { once: true });
+}
+
+function onProjectContextMenu(e: MouseEvent) {
+  e.preventDefault();
+  projectContextMenuPos.value = { x: e.clientX, y: e.clientY };
+  showProjectContextMenu.value = true;
+  document.addEventListener("click", () => {
+    showProjectContextMenu.value = false;
+  }, { once: true });
+}
+
+async function handleDeleteSelected() {
+  await config.deleteMultipleProjects(props.group.id, selectedProjectIds.value);
+  ui.clearProjectSelection();
+  showDeleteSelectedDialog.value = false;
+}
+
+async function handleConvertSelectedTo(type: "service" | "task") {
+  await config.convertMultipleProjects(props.group.id, selectedProjectIds.value, type);
+  ui.clearProjectSelection();
+  showProjectContextMenu.value = false;
 }
 
 async function handleRename(name: string) {
@@ -78,6 +119,25 @@ async function handleAddProject(name: string, command: string, cwd?: string) {
   ui.selectProject(props.group.id, project.id);
 }
 
+async function startGroup() {
+  const serviceProjects = props.group.projects.filter(p => p.projectType === "service");
+  for (const project of serviceProjects) {
+    const status = processesStore.getStatus(project.id)?.status;
+    if (status !== "running" && status !== "stopping") {
+      await processesStore.startProcess(props.group.id, project.id);
+    }
+  }
+}
+
+async function stopGroup() {
+  const runningProjects = props.group.projects.filter(
+    p => processesStore.getStatus(p.id)?.status === "running"
+  );
+  for (const project of runningProjects) {
+    await processesStore.stopProcess(project.id);
+  }
+}
+
 async function openFolder() {
   try {
     await invoke("open_path", { path: props.group.directory });
@@ -96,30 +156,49 @@ async function openInTerminal() {
 </script>
 
 <template>
-  <div>
-    <div class="flex items-center gap-0.5">
-      <button
-        class="flex-1 min-w-0 text-left px-2 py-1.5 text-sm font-medium text-gray-300 hover:bg-gray-700/50 rounded flex items-center gap-1 transition-colors"
-        @click="ui.toggleGroup(props.group.id)"
-        @contextmenu="onContextMenu"
+  <div class="select-none">
+    <!-- Group Header -->
+    <div
+      class="group flex items-center gap-1 px-2 py-1.5 text-sm cursor-pointer transition-colors"
+      :class="[
+        ui.selectedGroupId === props.group.id
+          ? 'bg-gray-700 text-gray-100'
+          : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-300',
+      ]"
+      @click="ui.toggleGroup(props.group.id)"
+      @contextmenu.prevent="onContextMenu"
+    >
+      <span
+        class="transition-transform duration-150"
+        :class="{ 'rotate-90': isExpanded() }"
       >
         <svg
-          class="w-3 h-3 transition-transform flex-shrink-0"
-          :class="isExpanded() ? 'rotate-90' : ''"
-          fill="currentColor"
-          viewBox="0 0 20 20"
+          class="w-3.5 h-3.5"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
         >
           <path
-            fill-rule="evenodd"
-            d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-            clip-rule="evenodd"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M9 5l7 7-7 7"
           />
         </svg>
-        <span class="truncate">{{ props.group.name }}</span>
-      </button>
+      </span>
+      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
+        />
+      </svg>
+      <span class="font-medium flex-1 min-w-0 truncate">{{ props.group.name }}</span>
+      <!-- Monitor button -->
       <button
         v-if="totalCount > 0"
-        class="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-1 rounded text-[10px] transition-colors"
+        class="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] transition-colors"
         :class="runningCount > 0 ? 'text-green-400 hover:bg-green-900/30' : 'text-gray-500 hover:bg-gray-700/50'"
         title="Group Monitor"
         @click.stop="ui.showGroupMonitor(props.group.id)"
@@ -129,9 +208,85 @@ async function openInTerminal() {
         </svg>
         <span>{{ runningCount }}/{{ totalCount }}</span>
       </button>
+      <button
+        v-if="runningCount > 0"
+        class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition-all"
+        @click.stop="stopGroup"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <rect x="6" y="6" width="12" height="12" stroke-width="2" />
+        </svg>
+      </button>
+      <button
+        v-else
+        class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition-all"
+        @click.stop="startGroup"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <polygon points="5 3 19 12 5 21 5 3" stroke-width="2" fill="currentColor" />
+        </svg>
+      </button>
+      <button
+        class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition-all"
+        @click.stop="showAddProjectDialog = true"
+      >
+        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
     </div>
 
-    <!-- Context menu -->
+    <!-- Projects List -->
+    <div v-if="isExpanded()" class="ml-4 pt-2">
+      <!-- Service/Task Tabs -->
+      <div v-if="props.group.projects.length > 0" class="flex gap-1 mb-2 px-1">
+        <button
+          class="px-2 py-0.5 text-xs rounded transition-colors"
+          :class="selectedTab === 'all' ? 'bg-gray-600 text-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'"
+          @click="selectedTab = 'all'"
+        >
+          All
+        </button>
+        <button
+          class="px-2 py-0.5 text-xs rounded transition-colors"
+          :class="selectedTab === 'service' ? 'bg-gray-600 text-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'"
+          @click="selectedTab = 'service'"
+        >
+          Services
+        </button>
+        <button
+          class="px-2 py-0.5 text-xs rounded transition-colors"
+          :class="selectedTab === 'task' ? 'bg-gray-600 text-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'"
+          @click="selectedTab = 'task'"
+        >
+          Tasks
+        </button>
+      </div>
+      <div class="space-y-0.5">
+        <ProjectItem
+          v-for="project in filteredProjects"
+          :key="project.id"
+          :project="project"
+          :group-id="props.group.id"
+          @contextmenu="onProjectContextMenu"
+        />
+        <div
+          v-if="filteredProjects.length === 0 && props.group.projects.length > 0"
+          class="px-3 py-2 text-xs text-gray-500 italic"
+        >
+          No {{ selectedTab }}s in this group
+        </div>
+      </div>
+      <button
+        v-if="props.group.projects.length === 0"
+        class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
+        @click="showAddProjectDialog = true"
+      >
+        + Add a project
+      </button>
+    </div>
+
+    <!-- Group Context Menu -->
     <Teleport to="body">
       <div
         v-if="showContextMenu"
@@ -190,65 +345,93 @@ async function openInTerminal() {
       </div>
     </Teleport>
 
-    <!-- Expanded projects -->
-    <div v-if="isExpanded()" class="ml-3 mt-0.5 space-y-0.5">
-      <ProjectItem
-        v-for="project in props.group.projects"
-        :key="project.id"
-        :project="project"
-        :group-id="props.group.id"
-      />
-      <button
-        v-if="props.group.projects.length === 0"
-        class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:text-gray-400"
-        @click="showAddProjectDialog = true"
+    <!-- Project Selection Context Menu -->
+    <Teleport to="body">
+      <div
+        v-if="showProjectContextMenu"
+        class="fixed z-50 min-w-[12rem] bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1"
+        :style="{ left: projectContextMenuPos.x + 'px', top: projectContextMenuPos.y + 'px' }"
       >
-        + Add a project
-      </button>
-    </div>
+      <div
+        v-if="hasSelectedProjects"
+        class="px-3 py-1.5 text-xs text-gray-500 border-b border-gray-700"
+      >
+        {{ selectedProjectIds.length }} selected
+      </div>
+      <template v-if="hasSelectedProjects">
+        <button
+          class="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+          @click="handleConvertSelectedTo('service')"
+        >
+          Convert to Service
+        </button>
+        <button
+          class="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+          @click="handleConvertSelectedTo('task')"
+        >
+          Convert to Task
+        </button>
+        <div class="border-t border-gray-700 my-1"></div>
+        <button
+          class="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-gray-700 transition-colors"
+          @click="showDeleteSelectedDialog = true"
+        >
+          Delete Selected
+        </button>
+      </template>
+      <template v-else>
+        <div class="px-3 py-1.5 text-sm text-gray-500">
+          Right-click on a project to select multiple with Shift+click
+        </div>
+      </template>
+      </div>
+    </Teleport>
 
     <!-- Dialogs -->
     <EditDialog
       :open="showRenameDialog"
       title="Rename Group"
-      label="Group Name"
+      label="Group name"
       :value="props.group.name"
+      placeholder="Group name"
       @confirm="handleRename"
       @cancel="showRenameDialog = false"
     />
-
     <EditDialog
       :open="showEditDirectoryDialog"
-      title="Change Directory"
-      label="Working Directory"
+      title="Edit Directory"
+      label="Directory path"
       :value="props.group.directory"
-      placeholder="/path/to/directory"
-      browse-directory
+      placeholder="Directory path"
       @confirm="handleEditDirectory"
       @cancel="showEditDirectoryDialog = false"
     />
-
+    <ConfirmDialog
+      :open="showDeleteDialog"
+      title="Delete Group"
+      :message="`Delete '${props.group.name}' and all its projects?`"
+      @confirm="handleDelete"
+      @cancel="showDeleteDialog = false"
+    />
+    <ConfirmDialog
+      :open="showDeleteSelectedDialog"
+      title="Delete Selected Projects"
+      :message="`Delete ${selectedProjectIds.length} selected project${selectedProjectIds.length === 1 ? '' : 's'}?`"
+      @confirm="handleDeleteSelected"
+      @cancel="showDeleteSelectedDialog = false"
+    />
     <ProjectFormDialog
       :open="showAddProjectDialog"
       title="Add Project"
       @confirm="handleAddProject"
       @cancel="showAddProjectDialog = false"
     />
-
     <EnvVarsEditor
       :open="showEnvVarsDialog"
-      :title="`Environment Variables - ${props.group.name}`"
+      title="Group Environment Variables"
       :env-vars="props.group.envVars"
       @confirm="handleUpdateEnvVars"
       @cancel="showEnvVarsDialog = false"
-    />
-
-    <ConfirmDialog
-      :open="showDeleteDialog"
-      title="Delete Group"
-      :message="`Are you sure you want to delete '${props.group.name}' and all its projects?`"
-      @confirm="handleDelete"
-      @cancel="showDeleteDialog = false"
     />
   </div>
 </template>

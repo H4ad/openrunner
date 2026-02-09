@@ -1,6 +1,6 @@
 use crate::database;
 use crate::error::Error;
-use crate::models::{LogMessage, LogStream, ProcessInfo, ProcessStatus};
+use crate::models::{LogMessage, LogStream, ProcessInfo, ProcessStatus, ProjectType};
 use crate::platform::{create_platform_manager, PlatformProcessManager};
 use crate::state::{AppState, ManagedProcess};
 use std::io::Write;
@@ -35,6 +35,7 @@ pub fn spawn_process(
     working_dir: &str,
     env_vars: &std::collections::HashMap<String, String>,
     auto_restart: bool,
+    project_type: ProjectType,
 ) -> Result<(), Error> {
     // Check if already running
     {
@@ -157,6 +158,7 @@ pub fn spawn_process(
             &working_dir_owned,
             &env_vars_owned,
             auto_restart,
+            project_type,
         )
         .await;
     });
@@ -223,6 +225,7 @@ async fn watch_exit(
     working_dir: &str,
     env_vars: &std::collections::HashMap<String, String>,
     auto_restart: bool,
+    project_type: ProjectType,
 ) {
     let state = app_handle.state::<Arc<AppState>>();
 
@@ -298,23 +301,25 @@ async fn watch_exit(
 
     emit_status_update(app_handle, project_id, status, None);
 
-    // Auto-restart if enabled and not manually stopped
-    if auto_restart && !manually_stopped {
+    // Auto-restart if enabled, not manually stopped, and project type is Service
+    // Tasks should never auto-restart
+    if auto_restart && !manually_stopped && project_type == ProjectType::Service {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-        // Re-check auto_restart from config (it may have changed)
-        let should_restart = {
+        // Re-check auto_restart and project_type from config (they may have changed)
+        let (should_restart, current_project_type) = {
             let config = state.config.lock().unwrap();
             config
                 .groups
                 .iter()
                 .flat_map(|g| &g.projects)
                 .find(|p| p.id == project_id)
-                .map(|p| p.auto_restart)
-                .unwrap_or(false)
+                .map(|p| (p.auto_restart, p.project_type.clone()))
+                .unwrap_or((false, ProjectType::Service))
         };
 
-        if should_restart {
+        // Only restart if it's still a Service type
+        if should_restart && current_project_type == ProjectType::Service {
             // Check process isn't already running (e.g., user restarted manually)
             let already_running = {
                 let processes = state.processes.lock().unwrap();
@@ -330,6 +335,7 @@ async fn watch_exit(
                     working_dir,
                     env_vars,
                     auto_restart,
+                    ProjectType::Service,
                 );
             }
         }

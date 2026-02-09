@@ -1,19 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { formatBytes } from "../../utils/formatters";
 
 const props = defineProps<{
   cpuUsage: number;
   memoryUsage: number;
 }>();
 
-const formattedMemory = computed(() => {
-  const bytes = props.memoryUsage;
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024)
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-});
+const formattedMemory = computed(() => formatBytes(props.memoryUsage));
 </script>
 
 <template>

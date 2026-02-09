@@ -3,6 +3,7 @@ import { onMounted, ref } from "vue";
 import { useSessionsStore } from "../../stores/sessions";
 import { useUiStore } from "../../stores/ui";
 import type { SessionWithStats } from "../../types";
+import { formatBytes } from "../../utils/formatters";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
 
 const props = defineProps<{
@@ -37,12 +38,6 @@ function formatDuration(session: SessionWithStats): string {
   const hours = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return `${hours}h ${mins}m`;
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function statusColor(session: SessionWithStats): string {
@@ -124,7 +119,7 @@ async function handleDeleteSession() {
           </div>
           <div class="flex items-center gap-3 mt-1.5 text-[11px] text-gray-500">
             <span>{{ session.logCount }} logs</span>
-            <span>{{ formatSize(session.logSize) }}</span>
+            <span>{{ formatBytes(session.logSize) }}</span>
             <span>{{ session.metricCount }} metrics</span>
           </div>
         </div>

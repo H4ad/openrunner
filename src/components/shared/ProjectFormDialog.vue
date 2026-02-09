@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
+import type { ProjectType } from "../../types";
 
 const props = defineProps<{
   open: boolean;
@@ -9,6 +10,7 @@ const props = defineProps<{
   command?: string;
   cwd?: string;
   envVars?: Record<string, string>;
+  projectType?: ProjectType;
 }>();
 
 const emit = defineEmits<{
@@ -17,6 +19,7 @@ const emit = defineEmits<{
     command: string,
     cwd: string | undefined,
     envVars: Record<string, string>,
+    projectType: ProjectType,
   ];
   cancel: [];
 }>();
@@ -24,6 +27,7 @@ const emit = defineEmits<{
 const nameValue = ref("");
 const commandValue = ref("");
 const cwdValue = ref("");
+const projectTypeValue = ref<ProjectType>("service");
 const envRows = ref<{ key: string; value: string }[]>([]);
 const showEnvVars = ref(false);
 
@@ -34,6 +38,7 @@ watch(
       nameValue.value = props.name ?? "";
       commandValue.value = props.command ?? "";
       cwdValue.value = props.cwd ?? "";
+      projectTypeValue.value = props.projectType ?? "service";
       const entries = Object.entries(props.envVars ?? {});
       envRows.value =
         entries.length > 0
@@ -79,6 +84,7 @@ function submit() {
     commandValue.value.trim(),
     cwdValue.value.trim() || undefined,
     envVarsResult,
+    projectTypeValue.value,
   );
 }
 </script>
@@ -109,6 +115,30 @@ function submit() {
             placeholder="npm run dev"
             class="w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500 mb-4"
           />
+
+          <label class="block text-sm text-gray-400 mb-1">Type</label>
+          <div class="flex gap-2 mb-4">
+            <button
+              type="button"
+              class="flex-1 px-3 py-2 text-sm rounded border transition-colors"
+              :class="projectTypeValue === 'service'
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-gray-500'"
+              @click="projectTypeValue = 'service'"
+            >
+              Service
+            </button>
+            <button
+              type="button"
+              class="flex-1 px-3 py-2 text-sm rounded border transition-colors"
+              :class="projectTypeValue === 'task'
+                ? 'bg-blue-600 border-blue-600 text-white'
+                : 'bg-gray-900 border-gray-600 text-gray-400 hover:border-gray-500'"
+              @click="projectTypeValue = 'task'"
+            >
+              Task
+            </button>
+          </div>
 
           <label class="block text-sm text-gray-400 mb-1">
             Working Directory

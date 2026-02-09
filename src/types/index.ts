@@ -1,3 +1,5 @@
+export type ProjectType = "task" | "service";
+
 export interface Project {
   id: string;
   name: string;
@@ -5,6 +7,7 @@ export interface Project {
   autoRestart: boolean;
   envVars: Record<string, string>;
   cwd: string | null;
+  projectType: ProjectType;
 }
 
 export interface Group {
@@ -69,4 +72,8 @@ export interface StorageStats {
   logCount: number;
   metricCount: number;
   sessionCount: number;
+}
+
+export interface AppConfig {
+  groups: Group[];
 }

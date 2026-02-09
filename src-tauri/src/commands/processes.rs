@@ -27,7 +27,7 @@ pub async fn start_process(
     group_id: String,
     project_id: String,
 ) -> Result<(), Error> {
-    let (command, working_dir, env_vars, auto_restart) = {
+    let (command, working_dir, env_vars, auto_restart, project_type) = {
         let config = state.config.lock().unwrap();
         let group = config
             .groups
@@ -47,6 +47,7 @@ pub async fn start_process(
             resolve_working_dir(&group.directory, &project.cwd),
             merged_env,
             project.auto_restart,
+            project.project_type.clone(),
         )
     };
 
@@ -59,6 +60,7 @@ pub async fn start_process(
         &working_dir,
         &env_vars,
         auto_restart,
+        project_type,
     )
 }
 
@@ -98,7 +100,7 @@ pub fn restart_process(
             }
         }
 
-        let (command, working_dir, env_vars, auto_restart) = {
+        let (command, working_dir, env_vars, auto_restart, project_type) = {
             let config = state_arc.config.lock().unwrap();
             let group = match config.groups.iter().find(|g| g.id == gid) {
                 Some(g) => g,
@@ -115,6 +117,7 @@ pub fn restart_process(
                 resolve_working_dir(&group.directory, &project.cwd),
                 merged_env,
                 project.auto_restart,
+                project.project_type.clone(),
             )
         };
 
@@ -126,6 +129,7 @@ pub fn restart_process(
             &working_dir,
             &env_vars,
             auto_restart,
+            project_type,
         );
     });
 

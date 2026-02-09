@@ -25,6 +25,9 @@ tauri-plugin-dialog = "2.6.0"
 rusqlite = { version = "0.31", features = ["bundled"] }
 which = "6"
 clap = { version = "4", features = ["derive"] }
+dirs = "5"
+dialoguer = "0.11"
+notify = "8"
 
 [target.'cfg(unix)'.dependencies]
 libc = "0.2"

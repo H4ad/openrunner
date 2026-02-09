@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/niceerror/tauri/refs/heads/dev/crates/tauri-config-schema/schema.json",
   "productName": "OpenRunner",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "identifier": "com.openrunner.app",
   "build": {
     "beforeDevCommand": "pnpm dev",

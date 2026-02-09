@@ -1,9 +1,11 @@
-use crate::models::{AppConfig, Group, Project};
+use crate::models::{Group, Project, ProjectType};
 use crate::storage;
+use dialoguer::MultiSelect;
 use serde_json::{self, Value};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use uuid::Uuid;
 
 /// Project template for detected projects
 #[derive(Debug, Clone)]
@@ -144,12 +146,8 @@ fn detect_makefile(directory: &Path) -> Option<Vec<ProjectTemplate>> {
     let content = fs::read_to_string(&makefile_path).ok()?;
 
     let mut projects = Vec::new();
-    let mut in_help_section = false;
 
     for line in content.lines() {
-        // Skip comments and empty lines
-        let trimmed = line.trim();
-
         // Detect common targets
         if let Some(target) = line.split(':').next() {
             let target = target.trim();
@@ -165,7 +163,7 @@ fn detect_makefile(directory: &Path) -> Option<Vec<ProjectTemplate>> {
             }
 
             // Common targets to highlight
-            let (priority, description) = match target {
+            let (_priority, description) = match target {
                 "dev" | "develop" => (1, "Development server"),
                 "start" | "run" | "serve" => (2, "Start application"),
                 "build" | "compile" => (3, "Build project"),
@@ -270,7 +268,7 @@ fn detect_docker(directory: &Path) -> Option<Vec<ProjectTemplate>> {
         return None;
     }
 
-    let mut projects = vec![ProjectTemplate {
+    let projects = vec![ProjectTemplate {
         name: "docker: build".to_string(),
         command: "docker build -t $(basename $(pwd)) .".to_string(),
         description: "Build Docker image".to_string(),
@@ -372,6 +370,63 @@ fn detect_go(directory: &Path) -> Vec<ProjectTemplate> {
     projects
 }
 
+/// Show preview of what will be created
+fn show_preview(group_name: &str, directory: &Path, projects: &[ProjectTemplate]) {
+    println!("\n╔════════════════════════════════════════════════════════╗");
+    println!("║           PREVIEW: Group to be created                 ║");
+    println!("╚════════════════════════════════════════════════════════╝");
+    println!("  Group Name: {}", group_name);
+    println!("  Directory:  {}", directory.display());
+    println!("  Projects:   {}", projects.len());
+    println!("  ───────────────────────────────────────────────────────");
+
+    for (i, project) in projects.iter().enumerate() {
+        println!("  {}. {}", i + 1, project.name);
+        println!("     └─ {}", project.description);
+        println!("     └─ $ {}", project.command);
+        if i < projects.len() - 1 {
+            println!();
+        }
+    }
+    println!("  ═══════════════════════════════════════════════════════\n");
+}
+
+/// Prompt user for project selection using dialoguer
+fn prompt_project_selection(
+    projects: &[ProjectTemplate],
+) -> Result<Vec<usize>, Box<dyn std::error::Error>> {
+    if projects.is_empty() {
+        return Ok(Vec::new());
+    }
+
+    let items: Vec<String> = projects
+        .iter()
+        .map(|p| format!("{} - {}", p.name, p.description))
+        .collect();
+
+    let defaults: Vec<bool> = vec![true; projects.len()];
+
+    let selection = MultiSelect::new()
+        .with_prompt("Select projects to include (use arrow keys to navigate, space to select/deselect, enter to confirm)")
+        .items(&items)
+        .defaults(&defaults)
+        .interact()?;
+
+    Ok(selection)
+}
+
+/// Prompt user for confirmation
+fn prompt_confirmation(message: &str) -> Result<bool, Box<dyn std::error::Error>> {
+    use dialoguer::Confirm;
+
+    let confirmed = Confirm::new()
+        .with_prompt(message)
+        .default(true)
+        .interact()?;
+
+    Ok(confirmed)
+}
+
 /// Execute the new command - create group with auto-detected projects
 pub fn execute_new(
     directory: PathBuf,
@@ -391,7 +446,6 @@ pub fn execute_new(
     });
 
     println!("Scanning directory: {}", directory.display());
-    println!("Group name: {}", group_name);
 
     // Detect projects
     let detected_projects = detect_projects(&directory);
@@ -410,28 +464,81 @@ pub fn execute_new(
         return Ok(());
     }
 
-    println!("\nDetected {} project(s):", detected_projects.len());
-    for (i, project) in detected_projects.iter().enumerate() {
-        println!("  {}. {} - {}", i + 1, project.name, project.description);
-        println!("     Command: {}", project.command);
-    }
+    println!("Detected {} project(s)", detected_projects.len());
+
+    // Show preview
+    show_preview(&group_name, &directory, &detected_projects);
 
     if dry_run {
-        println!("\n[DRY RUN] No changes were made.");
+        println!("[DRY RUN] No changes were made.");
         return Ok(());
     }
 
-    // Note: Actual group creation requires access to Tauri app state
-    // which isn't available in CLI-only mode. For now, we output what would be created.
-    println!("\n[INFO] CLI mode currently shows what would be created.");
-    println!("To create this group in OpenRunner, please:");
-    println!("1. Open the OpenRunner GUI");
-    println!("2. Click 'New Group'");
-    println!("3. Select directory: {}", directory.display());
-    println!("4. Add the projects listed above");
+    // Interactive project selection
+    let selected_indices = prompt_project_selection(&detected_projects)?;
 
-    // TODO: In a future enhancement, we can load the config.json directly
-    // and modify it without requiring the GUI
+    if selected_indices.is_empty() {
+        println!("No projects selected. Canceling.");
+        return Ok(());
+    }
+
+    let selected_projects: Vec<&ProjectTemplate> = selected_indices
+        .iter()
+        .map(|&i| &detected_projects[i])
+        .collect();
+
+    println!(
+        "\nYou selected {} project(s) to create:",
+        selected_projects.len()
+    );
+    for project in &selected_projects {
+        println!("  - {}", project.name);
+    }
+
+    // Final confirmation
+    if !prompt_confirmation("\nCreate this group with the selected projects?")? {
+        println!("Canceled.");
+        return Ok(());
+    }
+
+    // Create the group and projects
+    let group_id = Uuid::new_v4().to_string();
+    let directory_str = directory.to_string_lossy().to_string();
+
+    let projects: Vec<Project> = selected_projects
+        .iter()
+        .map(|template| Project {
+            id: Uuid::new_v4().to_string(),
+            name: template.name.clone(),
+            command: template.command.clone(),
+            auto_restart: false,
+            env_vars: HashMap::new(),
+            cwd: Some(directory_str.clone()),
+            project_type: ProjectType::Service
+        })
+        .collect();
+
+    let new_group = Group {
+        id: group_id,
+        name: group_name.clone(),
+        directory: directory_str,
+        projects,
+        env_vars: HashMap::new(),
+    };
+
+    // Load existing config and add the new group
+    let mut config = storage::load_config_cli()?;
+    config.groups.push(new_group);
+    storage::save_config_cli(&config)?;
+
+    // Success message
+    println!("\n╔════════════════════════════════════════════════════════╗");
+    println!("║              GROUP CREATED SUCCESSFULLY!               ║");
+    println!("╚════════════════════════════════════════════════════════╝");
+    println!("  Group: {}", group_name);
+    println!("  Projects: {}", selected_projects.len());
+    println!("  Config saved to: ~/.config/openrunner/config.json");
+    println!("\n  You can now open OpenRunner to manage this group.");
 
     Ok(())
 }

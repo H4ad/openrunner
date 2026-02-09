@@ -1,6 +1,19 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ProjectType {
+    Task,
+    Service,
+}
+
+impl Default for ProjectType {
+    fn default() -> Self {
+        ProjectType::Service
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppSettings {
@@ -34,6 +47,8 @@ pub struct Project {
     pub env_vars: HashMap<String, String>,
     #[serde(default)]
     pub cwd: Option<String>,
+    #[serde(default)]
+    pub project_type: ProjectType,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -55,9 +70,7 @@ pub struct AppConfig {
 
 impl Default for AppConfig {
     fn default() -> Self {
-        Self {
-            groups: Vec::new(),
-        }
+        Self { groups: Vec::new() }
     }
 }
 

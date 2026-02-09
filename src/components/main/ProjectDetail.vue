@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
 import type { Group, Project, Session, MetricPoint } from "../../types";
+import type { ProjectType } from "../../types";
 import { invoke } from "@tauri-apps/api/core";
 import { useProcessesStore } from "../../stores/processes";
 import { useConfigStore } from "../../stores/config";
@@ -34,10 +35,14 @@ const status = computed(() => processInfo.value?.status ?? "stopped");
 const cpuUsage = computed(() => processInfo.value?.cpuUsage ?? 0);
 const memoryUsage = computed(() => processInfo.value?.memoryUsage ?? 0);
 
-const groupRunningCount = computed(() =>
-  props.group.projects.filter((p) => processes.getStatus(p.id)?.status === "running").length,
+// Only services can be started via "Start All"
+const serviceProjects = computed(() =>
+  props.group.projects.filter((p) => p.projectType !== 'task')
 );
-const groupTotalCount = computed(() => props.group.projects.length);
+const groupRunningCount = computed(() =>
+  serviceProjects.value.filter((p) => processes.getStatus(p.id)?.status === "running").length,
+);
+const groupTotalCount = computed(() => serviceProjects.value.length);
 const allRunning = computed(() => groupRunningCount.value === groupTotalCount.value && groupTotalCount.value > 0);
 const someRunning = computed(() => groupRunningCount.value > 0);
 
@@ -47,7 +52,7 @@ async function startAllInGroup() {
   try {
     await processes.startAllInGroup(
       props.group.id,
-      props.group.projects.map((p) => p.id),
+      serviceProjects.value.map((p) => p.id),
     );
   } finally {
     startStopAllLoading.value = false;
@@ -123,12 +128,14 @@ async function handleEdit(
   command: string,
   cwd?: string,
   envVars?: Record<string, string>,
+  projectType?: string,
 ) {
   await config.updateProject(props.group.id, props.project.id, {
     name,
     command,
     cwd: cwd || null,
     envVars: envVars ?? {},
+    projectType: (projectType || 'service') as ProjectType,
   });
   showEditDialog.value = false;
 }
@@ -321,6 +328,7 @@ async function handleDelete() {
       :command="props.project.command"
       :cwd="props.project.cwd ?? undefined"
       :env-vars="props.project.envVars"
+      :project-type="props.project.projectType"
       @confirm="handleEdit"
       @cancel="showEditDialog = false"
     />
