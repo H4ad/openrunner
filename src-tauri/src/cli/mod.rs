@@ -1,4 +1,6 @@
+pub mod commands;
 pub mod detector;
+pub mod ui;
 
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
@@ -45,7 +47,7 @@ pub fn run_cli() -> bool {
             name,
             dry_run,
         }) => {
-            if let Err(e) = detector::execute_new(directory, name, dry_run) {
+            if let Err(e) = commands::execute_new(directory, name, dry_run) {
                 eprintln!("Error: {}", e);
                 std::process::exit(1);
             }

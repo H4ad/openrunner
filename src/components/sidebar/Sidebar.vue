@@ -7,7 +7,8 @@ import EditDialog from "../shared/EditDialog.vue";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GearIcon, PlusIcon } from "@radix-icons/vue";
+import { GearIcon, PlusIcon, UploadIcon } from "@radix-icons/vue";
+import { open } from "@tauri-apps/plugin-dialog";
 
 const config = useConfigStore();
 const ui = useUiStore();
@@ -16,6 +17,23 @@ const showNewGroupDialog = ref(false);
 async function handleCreateGroup(name: string, directory?: string) {
   await config.createGroup(name, directory ?? ".");
   showNewGroupDialog.value = false;
+}
+
+async function importGroup() {
+  const filePath = await open({
+    filters: [
+      { name: "YAML", extensions: ["yaml", "yml"] },
+      { name: "All Files", extensions: ["*"] },
+    ],
+    multiple: false,
+  });
+  if (filePath) {
+    try {
+      await config.importGroup(filePath as string);
+    } catch (e) {
+      console.error("Failed to import group:", e);
+    }
+  }
 }
 </script>
 
@@ -30,10 +48,10 @@ async function handleCreateGroup(name: string, directory?: string) {
           variant="ghost"
           size="icon"
           class="h-7 w-7"
-          title="Settings"
-          @click="ui.showSettings()"
+          title="Import Group"
+          @click="importGroup"
         >
-          <GearIcon class="h-4 w-4" />
+          <UploadIcon class="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"

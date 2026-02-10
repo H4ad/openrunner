@@ -134,6 +134,44 @@ export const useConfigStore = defineStore("config", () => {
     }
   }
 
+  async function exportGroup(groupId: string, filePath: string) {
+    await invoke("export_group", { groupId, filePath });
+  }
+
+  async function importGroup(filePath: string): Promise<Group> {
+    const group = await invoke<Group>("import_group", { filePath });
+    groups.value.push(group);
+    return group;
+  }
+
+  async function toggleGroupSync(groupId: string): Promise<Group> {
+    try {
+      const updatedGroup: Group = await invoke('toggle_group_sync', { groupId });
+      const index = groups.value.findIndex((g: Group) => g.id === groupId);
+      if (index !== -1) {
+        groups.value[index] = updatedGroup;
+      }
+      return updatedGroup;
+    } catch (error) {
+      console.error('Failed to toggle group sync:', error);
+      throw error;
+    }
+  }
+
+  async function reloadGroupFromYaml(groupId: string) {
+    try {
+      const updatedGroup = await invoke<Group>("reload_group_from_yaml", { groupId });
+      const index = groups.value.findIndex((g: Group) => g.id === groupId);
+      if (index !== -1) {
+        groups.value[index] = updatedGroup;
+      }
+      return updatedGroup;
+    } catch (error) {
+      console.error("Failed to reload group from YAML:", error);
+      throw error;
+    }
+  }
+
   async function init() {
     if (initialized) return;
     initialized = true;
@@ -142,6 +180,11 @@ export const useConfigStore = defineStore("config", () => {
 
     listen<AppConfig>("config-reloaded", (event) => {
       groups.value = event.payload.groups;
+    });
+
+    listen<{ groupId: string; filePath: string }>("yaml-file-changed", (event) => {
+      console.log("YAML file changed, reloading group:", event.payload.groupId);
+      reloadGroupFromYaml(event.payload.groupId);
     });
   }
 
@@ -159,6 +202,10 @@ export const useConfigStore = defineStore("config", () => {
     deleteProject,
     deleteMultipleProjects,
     convertMultipleProjects,
+    exportGroup,
+    importGroup,
+    toggleGroupSync,
+    reloadGroupFromYaml,
     init,
   };
 });

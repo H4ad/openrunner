@@ -10,6 +10,7 @@ import ProjectFormDialog from "../shared/ProjectFormDialog.vue";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
 import EnvVarsEditor from "../shared/EnvVarsEditor.vue";
 import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
 import {
   Collapsible,
   CollapsibleContent,
@@ -29,6 +30,8 @@ import {
   CodeIcon,
   Pencil1Icon,
   TrashIcon,
+  DownloadIcon,
+  FileIcon,
 } from "@radix-icons/vue";
 
 const props = defineProps<{
@@ -171,6 +174,31 @@ async function openInTerminal() {
     console.error("Failed to open terminal:", e);
   }
 }
+
+async function exportGroup() {
+  const filePath = await save({
+    filters: [
+      { name: "YAML", extensions: ["yaml", "yml"] },
+      { name: "All Files", extensions: ["*"] },
+    ],
+    defaultPath: `${props.group.name}.yaml`,
+  });
+  if (filePath) {
+    try {
+      await config.exportGroup(props.group.id, filePath);
+    } catch (e) {
+      console.error("Failed to export group:", e);
+    }
+  }
+}
+
+async function toggleSync() {
+  try {
+    await config.toggleGroupSync(props.group.id);
+  } catch (e) {
+    console.error("Failed to toggle group sync:", e);
+  }
+}
 </script>
 
 <template>
@@ -196,6 +224,12 @@ async function openInTerminal() {
           />
           <LayersIcon class="h-4 w-4" />
           <span class="font-medium flex-1 min-w-0 truncate">{{ props.group.name }}</span>
+          <!-- Sync indicator -->
+          <FileIcon
+            v-if="props.group.syncEnabled"
+            class="h-3.5 w-3.5 flex-shrink-0 text-green-400"
+            title="YAML Sync Enabled"
+          />
           <!-- Monitor button -->
           <Badge
             v-if="totalCount > 0"
@@ -353,6 +387,21 @@ async function openInTerminal() {
           @click="showEnvVarsDialog = true"
         >
           Environment Variables
+        </button>
+        <button
+          class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2"
+          @click="toggleSync"
+        >
+          <FileIcon class="h-3.5 w-3.5" :class="props.group.syncEnabled ? 'text-green-400' : ''" />
+          {{ props.group.syncEnabled ? 'Disable YAML Sync' : 'Enable YAML Sync' }}
+        </button>
+        <Separator class="my-1" />
+        <button
+          class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2"
+          @click="exportGroup"
+        >
+          <DownloadIcon class="h-3.5 w-3.5" />
+          Export Group
         </button>
         <Separator class="my-1" />
         <button

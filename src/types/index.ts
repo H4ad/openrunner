@@ -17,6 +17,8 @@ export interface Group {
   directory: string;
   projects: Project[];
   envVars: Record<string, string>;
+  syncFile?: string;
+  syncEnabled: boolean;
 }
 
 export type ProcessStatus = "running" | "stopping" | "stopped" | "errored";

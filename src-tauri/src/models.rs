@@ -62,6 +62,10 @@ pub struct Group {
     pub projects: Vec<Project>,
     #[serde(default)]
     pub env_vars: HashMap<String, String>,
+    #[serde(default)]
+    pub sync_file: Option<String>,
+    #[serde(default)]
+    pub sync_enabled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

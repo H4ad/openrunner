@@ -1,0 +1,16 @@
+version: '1.0'
+name: OpenRunner 2
+syncEnabled: true
+projects:
+- name: Build 2
+  command: pnpm tauri build
+  type: task
+  cwd: src-tauri
+- name: Opencode
+  command: opencode
+  type: service
+  interactive: true
+- name: htop
+  command: htop
+  type: service
+  interactive: true

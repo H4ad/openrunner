@@ -31,6 +31,9 @@ pub enum Error {
 
     #[error("File not found: {0}")]
     FileNotFound(String),
+
+    #[error("YAML config error: {0}")]
+    YamlConfig(String),
 }
 
 impl Serialize for Error {

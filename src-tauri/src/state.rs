@@ -46,6 +46,8 @@ pub struct AppState {
     pub pid_file_path: PathBuf,
     /// Platform-specific process manager
     platform_manager: Box<dyn PlatformProcessManager>,
+    /// YAML file watcher
+    pub yaml_watcher: Mutex<crate::file_watcher::YamlWatcher>,
 }
 
 impl AppState {
@@ -68,6 +70,7 @@ impl AppState {
             active_sessions: Mutex::new(HashMap::new()),
             pid_file_path,
             platform_manager,
+            yaml_watcher: Mutex::new(crate::file_watcher::YamlWatcher::new()),
         }
     }
 

@@ -75,9 +75,58 @@ cd src-tauri && cargo clippy
 - App state managed via `app.manage(Arc<AppState>)`
 
 **Tauri Commands:**
-- Organize by domain in `src-tauri/src/commands/`
+- One command = One file (mandatory - no domain grouping)
+- Location: `src-tauri/src/commands/<command_name>.rs`
 - Register in `lib.rs` via `tauri::generate_handler![]`
 - Return `Result<T, Error>` for error handling
+
+### Rust Command Structure Rule
+
+**Principle:** One command = One file. Never group multiple commands in a single file.
+
+**File Organization:**
+```
+src-tauri/src/commands/
+├── types.rs              # Shared types (re-exports from models, errors)
+├── utils.rs              # Helper functions used by multiple commands
+├── get_groups.rs         # Individual command file
+├── create_group.rs       # Individual command file
+├── ...                   # One file per command (47 total commands)
+```
+
+**Naming Convention:**
+- File: `snake_case.rs` matching command function name
+- Function: `pub fn command_name` with `#[tauri::command]`
+- Registration: `commands::<command_name>::<command_name>,` in lib.rs
+
+**Example:**
+```rust
+// src/commands/get_groups.rs
+use crate::commands::types::{Error, Group};
+use crate::state::AppState;
+use std::sync::Arc;
+use tauri::State;
+
+#[tauri::command]
+pub fn get_groups(state: State<'_, Arc<AppState>>) -> Result<Vec<Group>, Error> {
+    // implementation
+}
+```
+
+**Registration in lib.rs (grouped by domain):**
+```rust
+.invoke_handler(tauri::generate_handler![
+    // Group commands
+    commands::get_groups::get_groups,
+    commands::create_group::create_group,
+    // ... etc
+])
+```
+
+**Helper Functions:**
+- Place shared helpers in `commands/utils.rs`
+- Import with `use crate::commands::utils::helper_function;`
+- Keep imports explicit (no prelude module)
 
 **Formatting:**
 - No rustfmt.toml or clippy.toml present
@@ -108,15 +157,62 @@ cd src-tauri && cargo clippy
   /types                # TypeScript interfaces
 
 /src-tauri/src          # Rust backend
-  /commands             # Tauri command handlers
+  /commands             # Tauri command handlers (one file per command)
+    types.rs            # Shared type re-exports
+    utils.rs            # Command helper functions
+  /process              # Process management module
+    mod.rs              # Public API exports
+    platform.rs         # Platform abstraction
+    spawn.rs            # Process spawning (regular & interactive)
+    lifecycle.rs        # Start/stop/kill operations
+    watcher.rs          # Exit monitoring & auto-restart
+    io.rs               # PTY I/O operations
+  /cli                  # CLI functionality
+    /detector           # Project auto-detection
+      mod.rs            # detect_projects orchestrator
+      npm.rs            # package.json detection
+      makefile.rs       # Makefile detection
+      configs.rs        # Docker Compose, Justfile, etc.
+      languages.rs      # Python, Rust, Go, Docker detection
+    commands.rs         # CLI command implementations
+    ui.rs               # CLI user interface helpers
+  /database             # Database operations
+    mod.rs              # Public API exports
+    schema.rs           # Table creation & migrations
+    sessions.rs         # Session CRUD operations
+    logs.rs             # Log storage & retrieval
+    metrics.rs          # Metrics storage & queries
+    maintenance.rs      # Cleanup & statistics
   lib.rs                # App setup, command registration
   state.rs              # AppState with shared mutable state
   models.rs             # Data structures with serde derives
   error.rs              # Error enum
-  process_manager.rs    # Process spawning and management
   stats_collector.rs    # CPU/memory monitoring
-  database.rs           # SQLite operations
   storage.rs            # JSON file persistence
+```
+
+### Module Organization Rules
+
+**Large Modules (300+ lines) must be split:**
+- `process_manager.rs` → `src/process/` (5 submodules)
+- `cli/detector.rs` → `src/cli/detector/` (4 submodules)
+- `database.rs` → `src/database/` (5 submodules)
+
+**Module Structure Pattern:**
+```
+src/<module>/
+  mod.rs              # Public API re-exports
+  <submodule>.rs      # Individual concerns
+```
+
+**Re-export Pattern (mod.rs):**
+```rust
+pub mod schema;
+pub mod sessions;
+
+// Re-export for convenience
+pub use schema::init_database;
+pub use sessions::{create_session, end_session};
 ```
 
 ### Key Implementation Notes

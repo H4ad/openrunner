@@ -13,6 +13,7 @@ This document tracks the features implemented in Runner UI.
 - **Session History**: Track all process executions with logs and metrics
 - **Search**: Log search with Ctrl+F navigation
 - **File Links**: Click file paths in logs to open in editor
+- **Group Export/Import**: Export groups to JSON files and import them to share configurations
 
 ## Interactive Terminal Support
 
