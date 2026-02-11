@@ -10,11 +10,9 @@ pub fn resolve_project_working_dir(
     group_id: String,
     project_id: String,
 ) -> Result<String, Error> {
-    let config = state.config.lock().unwrap();
-    let group = config
-        .groups
-        .iter()
-        .find(|g| g.id == group_id)
+    let db = state.database.lock().unwrap();
+    let group = db
+        .get_group(&group_id)?
         .ok_or_else(|| Error::GroupNotFound(group_id.clone()))?;
     let project = group
         .projects

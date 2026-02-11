@@ -3,7 +3,6 @@ use crate::state::AppState;
 use crate::process::platform::get_platform_manager;
 use crate::process::emit_status_update;
 use crate::models::ProcessStatus;
-use crate::database;
 use std::time::Duration;
 use tauri::AppHandle;
 
@@ -50,9 +49,8 @@ pub fn kill_all_processes(state: &AppState) {
 
         // End session in SQLite
         if let Some(sid) = &managed.session_id {
-            if let Ok(conn) = state.group_db_manager.get_connection(&managed.group_id) {
-                let _ = database::end_session(&conn, sid, "stopped");
-            }
+            let db = state.database.lock().unwrap();
+            let _ = db.end_session(sid, "stopped");
         }
 
         // Remove from active sessions
@@ -184,11 +182,10 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     }
 
     // End all sessions in SQLite
-    for (project_id, group_id, _, session_id, _) in &process_info {
+    for (project_id, _group_id, _, session_id, _) in &process_info {
         if let Some(sid) = session_id {
-            if let Ok(conn) = state.group_db_manager.get_connection(group_id) {
-                let _ = database::end_session(&conn, sid, "stopped");
-            }
+            let db = state.database.lock().unwrap();
+            let _ = db.end_session(sid, "stopped");
         }
 
         // Remove from active sessions

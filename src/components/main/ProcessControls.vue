@@ -93,8 +93,8 @@ async function toggleAutoRestart() {
       <Label for="auto-restart" class="text-xs text-muted-foreground cursor-pointer">Auto-restart</Label>
       <Switch
         id="auto-restart"
-        :checked="props.autoRestart"
-        @update:checked="toggleAutoRestart"
+        :model-value="autoRestart"
+        @update:model-value="toggleAutoRestart"
       />
     </div>
   </div>

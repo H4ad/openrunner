@@ -1,6 +1,5 @@
 use crate::commands::types::{Error, Group, Project, ProjectType};
 use crate::state::AppState;
-use crate::storage;
 use crate::yaml_config::{find_yaml_file, YamlConfig};
 use std::path::Path;
 use std::sync::Arc;
@@ -52,10 +51,10 @@ pub fn import_group(
         group.sync_file = Some(yaml_path.to_string_lossy().to_string());
     }
 
+    // Save to database
     {
-        let mut config = state.config.lock().unwrap();
-        config.groups.push(group.clone());
-        storage::save_config(&app_handle, &config)?;
+        let mut db = state.database.lock().unwrap();
+        db.create_group(&group)?;
     }
 
     // Start watching YAML if applicable

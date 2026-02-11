@@ -563,21 +563,21 @@ onUnmounted(() => {
         </div>
         <button
           v-if="contextMenuProject.projectType !== 'service'"
-          class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent transition-colors"
+          class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent transition-colors cursor-pointer"
           @click="handleConvertProject('service')"
         >
           Convert to Service
         </button>
         <button
           v-if="contextMenuProject.projectType !== 'task'"
-          class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent transition-colors"
+          class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent transition-colors cursor-pointer"
           @click="handleConvertProject('task')"
         >
           Convert to Task
         </button>
         <Separator />
         <button
-          class="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors"
+          class="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
           @click="showDeleteDialog = true"
         >
           Delete Project

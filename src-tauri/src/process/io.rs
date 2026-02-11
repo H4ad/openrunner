@@ -4,8 +4,9 @@ use crate::state::AppState;
 use portable_pty::PtySize;
 use std::io::Write;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::AsyncReadExt;
 
 /// Read from a stream and emit log events
@@ -16,6 +17,7 @@ pub async fn read_stream<R: AsyncReadExt + Unpin>(
     stream: LogStream,
     log_path: &Path,
     _session_id: &str,
+    is_interactive: bool,
 ) {
     let _stream_str = match stream {
         LogStream::Stdout => "stdout",
@@ -41,11 +43,15 @@ pub async fn read_stream<R: AsyncReadExt + Unpin>(
                     let _ = file.write_all(data.as_bytes());
                 }
 
-                // Write to SQLite - TODO: fix to use group_db_manager
-                // let state = app_handle.state::<Arc<AppState>>();
-                // if let Ok(conn) = state.group_db_manager.get_connection(group_id) {
-                //     let _ = database::insert_log(&conn, session_id, stream_str, &data, timestamp);
-                // }
+                // Write to SQLite (skip for interactive/PTY processes)
+                if !is_interactive {
+                    let state = app_handle.state::<Arc<AppState>>();
+                    if let Ok(db) = state.database.lock() {
+                        let _ = db.insert_log(_session_id, stream, &data);
+                    }
+                    // Explicit drop to satisfy borrow checker
+                    drop(state);
+                }
 
                 let msg = LogMessage {
                     project_id: project_id.to_string(),

@@ -1,5 +1,4 @@
-use crate::database::config_db::ConfigDatabase;
-use crate::database::group_db::GroupDbManager;
+use crate::database::Database;
 use crate::models::{AppConfig, ProcessInfo};
 use crate::platform::{create_platform_manager, PlatformProcessManager};
 use portable_pty::MasterPty;
@@ -41,10 +40,10 @@ impl PtyDimensions {
 pub struct AppState {
     /// In-memory configuration
     pub config: Mutex<AppConfig>,
-    /// Configuration database
-    pub config_db: Mutex<ConfigDatabase>,
-    /// Group database manager for logs/metrics
-    pub group_db_manager: GroupDbManager,
+    /// Unified database for all data
+    pub database: Mutex<Database>,
+    /// Path to the database file
+    pub database_path: PathBuf,
     pub processes: Mutex<HashMap<String, ManagedProcess>>,
     pub process_infos: Mutex<HashMap<String, ProcessInfo>>,
     pub log_dir: PathBuf,
@@ -58,29 +57,22 @@ pub struct AppState {
     pub yaml_watcher: Mutex<crate::file_watcher::YamlWatcher>,
     /// Configuration directory path
     pub config_dir: PathBuf,
-    /// Groups directory path
-    pub groups_dir: PathBuf,
 }
 
 impl AppState {
-    pub fn new(
-        config: AppConfig,
-        log_dir: PathBuf,
-        config_dir: PathBuf,
-        groups_dir: PathBuf,
-    ) -> Self {
+    pub fn new(config: AppConfig, log_dir: PathBuf, config_dir: PathBuf) -> Self {
         let _ = std::fs::create_dir_all(&log_dir);
         let pid_file_path = config_dir.join("running_pids.txt");
         let platform_manager = Box::new(create_platform_manager());
 
-        // Initialize databases
-        let config_db = ConfigDatabase::open(&config_dir).expect("Failed to open config database");
-        let group_db_manager = GroupDbManager::new(groups_dir.clone());
+        // Initialize unified database
+        let database_path = config_dir.join("runner-ui.db");
+        let database = Database::open(&database_path).expect("Failed to open database");
 
         Self {
             config: Mutex::new(config),
-            config_db: Mutex::new(config_db),
-            group_db_manager,
+            database: Mutex::new(database),
+            database_path: database_path.clone(),
             processes: Mutex::new(HashMap::new()),
             process_infos: Mutex::new(HashMap::new()),
             log_dir,
@@ -89,7 +81,6 @@ impl AppState {
             platform_manager,
             yaml_watcher: Mutex::new(crate::file_watcher::YamlWatcher::new()),
             config_dir,
-            groups_dir,
         }
     }
 
@@ -144,14 +135,14 @@ impl AppState {
         self.platform_manager.as_ref()
     }
 
-    /// Get the config database (for convenience)
-    pub fn config_db(&self) -> std::sync::MutexGuard<'_, ConfigDatabase> {
-        self.config_db.lock().unwrap()
+    /// Get the database (for convenience)
+    pub fn db(&self) -> std::sync::MutexGuard<'_, Database> {
+        self.database.lock().unwrap()
     }
 
-    /// Get the group database manager (for convenience)
-    pub fn group_db(&self) -> &GroupDbManager {
-        &self.group_db_manager
+    /// Get the database path
+    pub fn db_path(&self) -> &PathBuf {
+        &self.database_path
     }
 }
 

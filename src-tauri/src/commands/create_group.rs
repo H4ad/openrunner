@@ -22,18 +22,13 @@ pub fn create_group(
         let yaml_config = yaml_config::parse_yaml(&yaml_path).map_err(Error::YamlConfig)?;
         let mut group = yaml_config::yaml_to_group(&yaml_config, dir_path, &yaml_path);
 
-        // Use provided name if different from YAML
-        if name != group.name {
-            group.name = name;
-        }
-
         // Set sync_enabled - default to true if YAML exists
         group.sync_enabled = sync_enabled.unwrap_or(true);
 
         // Save to database
         {
-            let config_db = state.config_db.lock().unwrap();
-            config_db.create_group(&group)?;
+            let mut db = state.database.lock().unwrap();
+            db.create_group(&group)?;
         }
 
         // Start watching the YAML file
@@ -62,8 +57,8 @@ pub fn create_group(
 
         // Save to database
         {
-            let config_db = state.config_db.lock().unwrap();
-            config_db.create_group(&group)?;
+            let mut db = state.database.lock().unwrap();
+            db.create_group(&group)?;
         }
 
         // Start watching the YAML file
@@ -87,8 +82,8 @@ pub fn create_group(
 
         // Save to database
         {
-            let config_db = state.config_db.lock().unwrap();
-            config_db.create_group(&group)?;
+            let mut db = state.database.lock().unwrap();
+            db.create_group(&group)?;
         }
 
         Ok(group)

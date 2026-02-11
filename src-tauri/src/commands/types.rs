@@ -2,4 +2,6 @@
 // Re-export commonly used types for convenience
 
 pub use crate::error::Error;
-pub use crate::models::{Group, Project, ProjectType, StorageStats};
+pub use crate::models::{
+    AppSettings, Group, MetricPoint, Project, ProjectType, Session, SessionWithStats, StorageStats,
+};

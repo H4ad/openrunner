@@ -8,7 +8,7 @@ mod platform;
 mod process;
 mod state;
 mod stats_collector;
-mod storage;
+pub mod storage;
 mod yaml_config;
 
 use state::AppState;
@@ -16,27 +16,25 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager};
 
 pub fn run() {
-    tauri::Builder::default()
+    let mut builder = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
-        .plugin(tauri_plugin_sql::Builder::new().build())
+        .plugin(tauri_plugin_os::init());
+
+    #[cfg(debug_assertions)]
+    {
+        builder = builder.plugin(tauri_plugin_devtools::init());
+    }
+
+    builder
         .setup(|app| {
             let handle = app.handle().clone();
             
-            // Get configuration directories
+            // Get configuration directory
             let config_dir = storage::get_config_dir()
                 .expect("Failed to get config directory");
-            let groups_dir = storage::get_groups_dir()
-                .expect("Failed to get groups directory");
             
-            // Run migration from JSON to SQLite if needed
-            #[allow(deprecated)]
-            if let Err(e) = database::run_migration_if_needed(&config_dir, &groups_dir) {
-                eprintln!("Migration warning: {}", e);
-                // Continue even if migration fails - might be first run
-            }
-            
-            // Load configuration from new SQLite database
+            // Load configuration from database
             let config = storage::load_config_cli()
                 .unwrap_or_else(|e| {
                     eprintln!("Failed to load config: {}, using default", e);
@@ -52,7 +50,7 @@ pub fn run() {
             let _ = std::fs::create_dir_all(&log_dir);
 
             // Initialize state
-            let state = Arc::new(AppState::new(config, log_dir, config_dir, groups_dir));
+            let state = Arc::new(AppState::new(config, log_dir, config_dir));
 
             // Kill any orphaned processes from previous runs
             process::lifecycle::kill_orphaned_processes(&state);
@@ -64,8 +62,8 @@ pub fn run() {
 
             // Start YAML file watchers for groups with sync enabled
             {
-                let config_db = state.config_db.lock().unwrap();
-                let groups = config_db.get_groups().unwrap_or_default();
+                let db = state.database.lock().unwrap();
+                let groups = db.get_groups().unwrap_or_default();
                 let watcher = state.yaml_watcher.lock().unwrap();
                 if let Err(e) = watcher.sync_watchers(handle.clone(), &groups) {
                     eprintln!("Failed to sync YAML watchers: {}", e);
@@ -75,6 +73,9 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Database commands
+            commands::get_database_path::get_database_path,
+
             // Group commands (CLI needs get_groups, create_group, delete_group via storage)
             commands::get_groups::get_groups,
             commands::create_group::create_group,
@@ -83,6 +84,16 @@ pub fn run() {
             commands::import_group::import_group,
             commands::reload_group_from_yaml::reload_group_from_yaml,
             commands::toggle_group_sync::toggle_group_sync,
+            commands::rename_group::rename_group,
+            commands::update_group_directory::update_group_directory,
+            commands::update_group_env_vars::update_group_env_vars,
+
+            // Project commands
+            commands::create_project::create_project,
+            commands::update_project::update_project,
+            commands::delete_project::delete_project,
+            commands::delete_multiple_projects::delete_multiple_projects,
+            commands::convert_multiple_projects::convert_multiple_projects,
 
             // Process commands
             commands::start_process::start_process,
@@ -94,6 +105,8 @@ pub fn run() {
 
             // Settings commands
             commands::detect_system_editor::detect_system_editor,
+            commands::get_settings::get_settings,
+            commands::update_settings::update_settings,
             commands::get_storage_stats::get_storage_stats,
             commands::cleanup_storage::cleanup_storage,
             commands::cleanup_all_storage::cleanup_all_storage,
@@ -103,6 +116,13 @@ pub fn run() {
             commands::clear_project_logs::clear_project_logs,
 
             // Session commands
+            commands::get_project_sessions::get_project_sessions,
+            commands::get_project_sessions_with_stats::get_project_sessions_with_stats,
+            commands::get_session_logs::get_session_logs,
+            commands::get_session_metrics::get_session_metrics,
+            commands::get_last_completed_session::get_last_completed_session,
+            commands::get_recent_logs::get_recent_logs,
+            commands::get_last_metric::get_last_metric,
             commands::get_session::get_session,
             commands::delete_session::delete_session,
 

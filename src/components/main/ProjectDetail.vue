@@ -213,7 +213,7 @@ async function handleDelete() {
     <!-- Header -->
     <div class="p-4 border-b border-border space-y-3">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
+        <div class="flex items-baseline gap-3">
           <h2 class="text-lg font-semibold text-foreground">
             {{ props.project.name }}
           </h2>

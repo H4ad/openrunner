@@ -51,6 +51,9 @@ cd src-tauri && cargo clippy
 - Semicolons required
 - Single quotes for strings
 
+**Known Bugs:**
+- The `Switch` component should use the `model-value` with `@update:model-value` instead of `checked` with `@update:checked`.
+
 ### Rust
 
 **Naming:**
@@ -144,6 +147,41 @@ pub fn get_groups(state: State<'_, Arc<AppState>>) -> Result<Vec<Group>, Error> 
 2. **Events (Backend → Frontend):**
    - Rust: `app_handle.emit("event", &payload)`
    - Vue: `listen<T>("event", handler)` from `@tauri-apps/api/event`
+
+### YAML Sync Rule (MANDATORY)
+
+**When adding ANY new feature that modifies groups or projects, you MUST ensure YAML sync is handled:**
+
+Groups can have `sync_enabled: true` which means all modifications must be written to the `openrunner.yaml` file. The file watcher prevents infinite loops by tracking timestamps.
+
+**Operations requiring YAML sync:**
+- Group: create, rename, update directory, update env vars
+- Project: create, update, delete (single or multiple), convert type
+- Import/Export already handle this
+
+**Pattern for Rust commands:**
+```rust
+// 1. Load group from database
+// 2. Perform database operation
+// 3. Update local group object
+// 4. Call yaml_config function to sync
+yaml_config::sync_yaml(&group, &state)?;
+// OR for specific operations:
+yaml_config::update_group_in_yaml(&group, &state)?;
+yaml_config::add_project_to_yaml(&group, &project, &state)?;
+yaml_config::update_project_in_yaml(&group, &project, &state)?;
+yaml_config::remove_project_from_yaml(&group, &project_id, &state)?;
+```
+
+**Pattern for TypeScript config store:**
+- Never call database services directly for mutations
+- Always call Rust commands via `invoke()`
+- This ensures proper YAML sync handling
+
+**New commands requiring sync:**
+- File location: `src-tauri/src/commands/<command_name>.rs`
+- Must update `commands/mod.rs` and `lib.rs`
+- Return updated `Group` so frontend state can be updated
 
 ### Project Structure
 

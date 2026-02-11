@@ -98,9 +98,9 @@ pub fn write_yaml(group: &Group, path: &Path) -> Result<(), String> {
             name: p.name.clone(),
             command: p.command.clone(),
             project_type: p.project_type.into(),
-            auto_restart: if p.auto_restart { Some(true) } else { None },
+            auto_restart: Some(p.auto_restart),
             cwd: p.cwd.clone(),
-            interactive: if p.interactive { Some(true) } else { None },
+            interactive: Some(p.interactive),
             env_vars: if p.env_vars.is_empty() {
                 None
             } else {

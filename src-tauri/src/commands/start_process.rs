@@ -11,18 +11,22 @@ pub async fn start_process(
     group_id: String,
     project_id: String,
 ) -> Result<(), Error> {
-    let (command, working_dir, env_vars, auto_restart, project_type) = {
-        let config = state.config.lock().unwrap();
-        let group = config
-            .groups
-            .iter()
-            .find(|g| g.id == group_id)
+    // Get group and project from SQLite database
+    let (group, project) = {
+        let db = state.database.lock().unwrap();
+        let group = db
+            .get_group(&group_id)?
             .ok_or_else(|| Error::GroupNotFound(group_id.clone()))?;
         let project = group
             .projects
             .iter()
             .find(|p| p.id == project_id)
-            .ok_or_else(|| Error::ProjectNotFound(project_id.clone()))?;
+            .ok_or_else(|| Error::ProjectNotFound(project_id.clone()))?
+            .clone();
+        (group, project)
+    };
+
+    let (command, working_dir, env_vars, auto_restart, project_type) = {
         // Merge: group env vars as base, project env vars override
         let mut merged_env = group.env_vars.clone();
         merged_env.extend(project.env_vars.clone());
@@ -36,16 +40,7 @@ pub async fn start_process(
     };
 
     let app_state: &AppState = &state;
-    let interactive = {
-        let config = state.config.lock().unwrap();
-        config
-            .groups
-            .iter()
-            .find(|g| g.id == group_id)
-            .and_then(|g| g.projects.iter().find(|p| p.id == project_id))
-            .map(|p| p.interactive)
-            .unwrap_or(false)
-    };
+    let interactive = project.interactive;
 
     crate::process::spawn_process(
         &app_handle,

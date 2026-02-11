@@ -40,6 +40,10 @@
 - **Status:** Done
 - **Description:** Created SettingsPage component replacing the old SettingsDialog. Shows general settings (max log lines) and storage management section with total size, session/log/metric counts, cleanup by age, and clear all data button. Settings gear button in sidebar now navigates to full settings page.
 
+## 27. Home Dashboard Overview
+- **Status:** Done
+- **Description:** Added a full-width Home view that replaces the sidebar when active. Includes quick actions, health summary, storage stats, global CPU/MEM metrics with sparklines, recent activity, and per-group overview cards with Start All actions.
+
 ## 11. File Path Detection & Opening in Logs
 - **Status:** Done
 - **Description:** Added custom xterm.js link provider to detect file paths (with optional line:column) in log output. Paths are resolved against the project's working directory. Clicking opens the file in the user's editor ($VISUAL/$EDITOR), with line/column support for VS Code, Sublime, vim/nvim, JetBrains IDEs, and Emacs. Falls back to xdg-open/open for unknown editors.
@@ -133,3 +137,11 @@
 ## 24. GitHub Actions CI/CD
 - **Status:** Done
 - **Description:** Created GitHub Actions workflow for automated building and releasing. Builds triggered on pushes to main/master and version tags (v*). Supports macOS (Apple Silicon + Intel), Windows, and Linux. Creates GitHub releases with artifacts when version tags are pushed.
+
+## 25. YAML Auto-Sync for Groups
+- **Status:** Done
+- **Description:** Created new Rust commands (rename_group, update_group_directory, update_group_env_vars, create_project, update_project, delete_project, delete_multiple_projects, convert_multiple_projects) that perform database operations and sync changes to openrunner.yaml when sync_enabled is true. Updated src/stores/config.ts to call Rust commands instead of direct database calls. Added YAML Sync Rule documentation to AGENTS.md to ensure future features handle YAML sync.
+
+## 26. Rust-Only Data Access for UI
+- **Status:** Done
+- **Description:** Moved UI reads to Rust commands (sessions, logs, metrics, settings) and removed tauri-plugin-sql along with unused frontend database services to eliminate duplicate data access paths.

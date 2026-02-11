@@ -20,7 +20,6 @@ use crate::error::Error;
 use crate::models::{ProcessInfo, ProcessStatus, ProjectType};
 use crate::state::AppState;
 use std::collections::HashMap;
-use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 
 /// Spawn a process for a project
@@ -44,9 +43,8 @@ pub fn spawn_process(
         }
     }
 
-    // Create a new session in SQLite - TODO: fix to use group_db_manager
-    // Need group_id to create session in correct database
-    let session_id = uuid::Uuid::new_v4().to_string();
+    // Create a new session in the database
+    let session_id = state.db().create_session(project_id)?;
 
     // Track active session
     {

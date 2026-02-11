@@ -7,10 +7,6 @@
     "core:default",
     "shell:allow-open",
     "dialog:allow-open",
-    "dialog:allow-save",
-    "sql:default",
-    "sql:allow-execute",
-    "sql:allow-select",
-    "sql:allow-close"
+    "dialog:allow-save"
   ]
 }

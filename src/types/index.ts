@@ -43,6 +43,7 @@ export interface LogMessage {
 export interface AppSettings {
   maxLogLines: number;
   editor: string | null;
+  linuxGpuOptimization: boolean | null;
 }
 
 export interface Session {

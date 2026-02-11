@@ -64,10 +64,10 @@ function handleContextMenu(e: MouseEvent) {
 <template>
   <button
     :class="cn(
-      'w-full text-left px-3 py-1.5 text-sm rounded flex items-center justify-between transition-colors',
+      'w-full text-left px-3 py-1.5 text-sm rounded flex items-baseline justify-between transition-colors cursor-pointer',
       isSelected
         ? isActive
-          ? 'bg-accent text-foreground ring-1 ring-ring'
+          ? 'bg-accent text-foreground'
           : 'bg-accent/50 text-foreground'
         : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
     )"
@@ -75,7 +75,7 @@ function handleContextMenu(e: MouseEvent) {
     @contextmenu.prevent="handleContextMenu"
   >
     <span class="truncate">{{ props.project.name }}</span>
-    <div class="flex items-center gap-1.5 flex-shrink-0 ml-1">
+    <div class="flex items-baseline gap-1.5 flex-shrink-0 ml-1">
       <span
         v-if="isRunning"
         class="text-[10px] text-muted-foreground font-mono"

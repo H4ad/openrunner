@@ -29,11 +29,8 @@ const labelMap: Record<string, string> = {
 </script>
 
 <template>
-  <Badge :variant="variantMap[props.status ?? 'stopped']" class="gap-1.5">
-    <span
-      class="w-2 h-2 rounded-full"
-      :class="colorMap[props.status ?? 'stopped']"
-    />
-    {{ labelMap[props.status ?? "stopped"] }}
-  </Badge>
+  <span
+    class="w-2 h-2 rounded-full"
+    :class="colorMap[props.status ?? 'stopped']"
+  />
 </template>

@@ -1,16 +1,18 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from "vue";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import { ArrowLeftIcon } from "@radix-icons/vue";
 import { invoke } from "@tauri-apps/api/core";
+import { type as getOsType } from "@tauri-apps/plugin-os";
+import { computed, onMounted, ref } from "vue";
 import { useSettingsStore } from "../../stores/settings";
 import { useUiStore } from "../../stores/ui";
 import type { StorageStats } from "../../types";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
-import { ArrowLeftIcon } from "@radix-icons/vue";
 
 const settings = useSettingsStore();
 const ui = useUiStore();
@@ -23,6 +25,9 @@ const cleanupDays = ref(30);
 const showClearAllDialog = ref(false);
 const savingLogLines = ref(false);
 const savingEditor = ref(false);
+const savingLinuxGpu = ref(false);
+const osType = ref(getOsType());
+const isLinux = computed(() => osType.value === "linux");
 
 const formattedSize = computed(() => {
   if (!storageStats.value) return "0 B";
@@ -96,6 +101,15 @@ async function clearAllData() {
   }
 }
 
+async function updateLinuxGpuOptimization(value: boolean) {
+  savingLinuxGpu.value = true;
+  try {
+    await settings.updateLinuxGpuOptimization(value);
+  } finally {
+    savingLinuxGpu.value = false;
+  }
+}
+
 onMounted(() => {
   maxLogLines.value = settings.maxLogLines;
   editorValue.value = settings.editor ?? "";
@@ -118,7 +132,7 @@ onMounted(() => {
       <section>
         <h3 class="text-md font-semibold text-foreground mb-4">General</h3>
         <Card>
-          <CardContent class="p-4 space-y-4">
+          <CardContent class="px-4 space-y-4">
             <div class="space-y-2">
               <Label for="max-log-lines">Max Log Lines</Label>
               <div class="flex items-center gap-3">
@@ -146,11 +160,34 @@ onMounted(() => {
         </Card>
       </section>
 
+      <!-- Linux GPU Optimization (Linux only) -->
+      <section v-if="isLinux">
+        <h3 class="text-md font-semibold text-foreground mb-4">Platform</h3>
+        <Card>
+          <CardContent class="px-4 space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="space-y-0.5">
+                <Label for="linux-gpu-opt">GPU Optimization</Label>
+                <p class="text-xs text-muted-foreground">
+                  Disable hardware acceleration to fix scroll lag and rendering issues.
+                  Requires restart to take effect.
+                </p>
+              </div>
+              <Switch
+                id="linux-gpu-opt"
+                :model-value="settings.linuxGpuOptimization ?? true"
+                @update:model-value="updateLinuxGpuOptimization"
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
       <!-- Editor Settings -->
       <section>
         <h3 class="text-md font-semibold text-foreground mb-4">Editor</h3>
         <Card>
-          <CardContent class="p-4 space-y-4">
+          <CardContent class="px-4 space-y-4">
             <div class="space-y-2">
               <Label for="default-editor">Default Editor</Label>
               <div class="flex items-center gap-3">
@@ -192,7 +229,7 @@ onMounted(() => {
       <section>
         <h3 class="text-md font-semibold text-foreground mb-4">Storage</h3>
         <Card>
-          <CardContent class="p-4 space-y-4">
+          <CardContent class="px-4 space-y-4">
             <div v-if="storageStats" class="grid grid-cols-2 gap-4">
               <div>
                 <span class="text-xs text-muted-foreground">Total Size</span>

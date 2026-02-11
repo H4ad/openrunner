@@ -21,10 +21,23 @@ pub struct AppSettings {
     pub max_log_lines: u32,
     #[serde(default)]
     pub editor: Option<String>,
+    #[serde(default = "default_linux_gpu_optimization")]
+    pub linux_gpu_optimization: Option<bool>,
 }
 
 fn default_max_log_lines() -> u32 {
     10_000
+}
+
+fn default_linux_gpu_optimization() -> Option<bool> {
+    #[cfg(target_os = "linux")]
+    {
+        Some(true)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        Some(false)
+    }
 }
 
 impl Default for AppSettings {
@@ -32,6 +45,7 @@ impl Default for AppSettings {
         Self {
             max_log_lines: default_max_log_lines(),
             editor: None,
+            linux_gpu_optimization: default_linux_gpu_optimization(),
         }
     }
 }

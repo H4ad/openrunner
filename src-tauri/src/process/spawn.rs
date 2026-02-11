@@ -7,6 +7,7 @@ use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
+
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
@@ -59,7 +60,7 @@ pub fn spawn_regular_process(
         let log_path_clone = log_path.to_path_buf();
         let sid = session_id.clone();
         tauri::async_runtime::spawn(async move {
-            read_stream(stdout, &app, &pid_str, LogStream::Stdout, &log_path_clone, &sid).await;
+            read_stream(stdout, &app, &pid_str, LogStream::Stdout, &log_path_clone, &sid, false).await;
         });
     }
 
@@ -70,7 +71,7 @@ pub fn spawn_regular_process(
         let log_path_clone = log_path.to_path_buf();
         let sid = session_id.clone();
         tauri::async_runtime::spawn(async move {
-            read_stream(stderr, &app, &pid_str, LogStream::Stderr, &log_path_clone, &sid).await;
+            read_stream(stderr, &app, &pid_str, LogStream::Stderr, &log_path_clone, &sid, false).await;
         });
     }
 
@@ -197,7 +198,7 @@ pub fn spawn_interactive_process(
                         .unwrap_or_default()
                         .as_millis() as u64;
 
-                    // Append to log file
+                    // Append to log file (backward compat)
                     if let Ok(mut file) = std::fs::OpenOptions::new()
                         .create(true)
                         .append(true)
@@ -206,11 +207,8 @@ pub fn spawn_interactive_process(
                         let _ = file.write_all(data.as_bytes());
                     }
 
-                    // Write to SQLite - TODO: fix to use group_db_manager
-                    // let state = app.state::<Arc<AppState>>();
-                    // if let Ok(conn) = state.group_db_manager.get_connection(group_id) {
-                    //     let _ = database::insert_log(&conn, &sid, "stdout", &data, timestamp);
-                    // }
+                    // Note: PTY (interactive) process logs are NOT stored in SQLite
+                    // to avoid flooding the database with terminal output (e.g., vim, htop)
 
                     let msg = LogMessage {
                         project_id: pid_str.clone(),

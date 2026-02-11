@@ -5,13 +5,15 @@ import GroupMonitor from "./GroupMonitor.vue";
 import SessionDetail from "./SessionDetail.vue";
 import SettingsPage from "./SettingsPage.vue";
 import EmptyState from "../shared/EmptyState.vue";
+import HomePage from "./HomePage.vue";
 
 const ui = useUiStore();
 </script>
 
 <template>
   <div class="flex-1 flex flex-col h-full min-h-0 bg-background">
-    <SettingsPage v-if="ui.viewMode === 'settings'" />
+    <HomePage v-if="ui.viewMode === 'home'" />
+    <SettingsPage v-else-if="ui.viewMode === 'settings'" />
     <GroupMonitor
       v-else-if="ui.viewMode === 'groupMonitor' && ui.selectedMonitorGroupId"
       :key="ui.selectedMonitorGroupId"

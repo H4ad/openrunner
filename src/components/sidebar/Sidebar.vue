@@ -7,7 +7,7 @@ import EditDialog from "../shared/EditDialog.vue";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { GearIcon, PlusIcon, UploadIcon } from "@radix-icons/vue";
+import { GearIcon, PlusIcon, UploadIcon, HomeIcon } from "@radix-icons/vue";
 import { open } from "@tauri-apps/plugin-dialog";
 
 const config = useConfigStore();
@@ -40,9 +40,15 @@ async function importGroup() {
 <template>
   <div class="bg-card border-r border-border flex flex-col h-full flex-shrink-0">
     <div class="p-3 border-b border-border flex items-center justify-between">
-      <h1 class="text-sm font-bold text-foreground tracking-wide uppercase">
-        OpenRunner
-      </h1>
+      <Button
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+        title="Home"
+        @click="ui.showHome()"
+      >
+        <HomeIcon class="h-4 w-4" />
+      </Button>
       <div class="flex items-center gap-1">
         <Button
           variant="ghost"
@@ -61,6 +67,15 @@ async function importGroup() {
           @click="showNewGroupDialog = true"
         >
           <PlusIcon class="h-4 w-4" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7"
+          title="Settings"
+          @click="ui.showSettings()"
+        >
+          <GearIcon class="h-4 w-4" />
         </Button>
       </div>
     </div>

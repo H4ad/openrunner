@@ -31,11 +31,12 @@ pub fn restart_process(
             }
         }
 
+        // Get group and project from SQLite database
         let (command, working_dir, env_vars, auto_restart, project_type, interactive) = {
-            let config = state_arc.config.lock().unwrap();
-            let group = match config.groups.iter().find(|g| g.id == gid) {
-                Some(g) => g,
-                None => return,
+            let db = state_arc.database.lock().unwrap();
+            let group = match db.get_group(&gid) {
+                Ok(Some(g)) => g,
+                _ => return,
             };
             let project = match group.projects.iter().find(|p| p.id == pid) {
                 Some(p) => p,

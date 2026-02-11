@@ -1,5 +1,5 @@
 #[tauri::command]
-pub fn detect_system_editor() -> String {
+pub async fn detect_system_editor() -> String {
     // Try VISUAL first, then EDITOR
     if let Ok(editor) = std::env::var("VISUAL") {
         if !editor.is_empty() {
@@ -19,9 +19,10 @@ pub fn detect_system_editor() -> String {
     ];
 
     for editor in common_editors {
-        if std::process::Command::new("which")
+        if tokio::process::Command::new("which")
             .arg(editor)
             .output()
+            .await
             .map(|o| o.status.success())
             .unwrap_or(false)
         {

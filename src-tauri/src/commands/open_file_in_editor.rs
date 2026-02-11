@@ -59,7 +59,7 @@ pub fn open_file_in_editor(
     let resolved_str = resolved.to_string_lossy().to_string();
 
     // Get configured editor or fall back to environment
-    let settings = storage::load_settings(&app_handle).unwrap_or_default();
+    let settings = storage::load_settings_cli().unwrap_or_default();
     let editor = settings
         .editor
         .filter(|e| !e.is_empty())

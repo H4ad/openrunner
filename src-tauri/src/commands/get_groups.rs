@@ -5,6 +5,6 @@ use tauri::State;
 
 #[tauri::command]
 pub fn get_groups(state: State<'_, Arc<AppState>>) -> Result<Vec<Group>, Error> {
-    let config_db = state.config_db.lock().unwrap();
-    config_db.get_groups()
+    let db = state.database.lock().unwrap();
+    db.get_groups()
 }

@@ -1,4 +1,3 @@
-use crate::database;
 use crate::models::{ProcessStatus, ProjectType};
 use crate::state::AppState;
 use crate::process::platform::get_platform_manager;
@@ -43,11 +42,11 @@ pub async fn watch_exit(
                     // Check if the real PTY process is still running
                     if let Some(real_pid) = managed.real_pid {
                         if !platform.is_process_running(real_pid) {
-                            // Process has exited
+                            // Process has exited - mark as error since we can't determine exit code
                             let session_id = managed.session_id.clone();
                             let group_id = managed.group_id.clone();
                             processes.remove(project_id);
-                            break (false, true, session_id, group_id, Some(real_pid), true);
+                            break (false, false, session_id, group_id, Some(real_pid), true);
                         }
                     }
                     // Continue waiting for PTY processes
@@ -101,9 +100,8 @@ pub async fn watch_exit(
         } else {
             "errored"
         };
-        if let Ok(conn) = state.group_db_manager.get_connection(&group_id) {
-            let _ = database::end_session(&conn, sid, exit_status_str);
-        }
+        let db = state.database.lock().unwrap();
+        let _ = db.end_session(sid, exit_status_str);
         // Remove from active sessions
         let mut sessions = state.active_sessions.lock().unwrap();
         sessions.remove(project_id);
@@ -122,22 +120,22 @@ pub async fn watch_exit(
 
     emit_status_update(app_handle, project_id, status, None);
 
-    // Auto-restart if enabled, not manually stopped, and project type is Service
-    // Tasks should never auto-restart
-    if auto_restart && !manually_stopped && project_type == ProjectType::Service {
+    // Auto-restart if enabled, not manually stopped, exited successfully, and project type is Service
+    // Tasks should never auto-restart, and crashed processes should not auto-restart
+    if auto_restart && !manually_stopped && exit_success && project_type == ProjectType::Service {
         tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
-        // Re-check auto_restart and project_type from config (they may have changed)
-        let (should_restart, current_project_type) = {
-            let config = state.config.lock().unwrap();
-            config
-                .groups
-                .iter()
-                .flat_map(|g| &g.projects)
-                .find(|p| p.id == project_id)
-                .map(|p| (p.auto_restart, p.project_type))
-                .unwrap_or((false, ProjectType::Service))
-        };
+        // Re-check auto_restart and project_type from database (they may have changed)
+            let (should_restart, current_project_type) = {
+                let db = state.database.lock().unwrap();
+                let groups = db.get_groups().unwrap_or_default();
+                groups
+                    .iter()
+                    .flat_map(|g| &g.projects)
+                    .find(|p| p.id == project_id)
+                    .map(|p| (p.auto_restart, p.project_type))
+                    .unwrap_or((false, ProjectType::Service))
+            };
 
         // Only restart if it's still a Service type
         if should_restart && current_project_type == ProjectType::Service {
@@ -156,7 +154,7 @@ pub async fn watch_exit(
                     command,
                     working_dir,
                     env_vars,
-                    auto_restart,
+                    should_restart,
                     ProjectType::Service,
                     interactive,
                 );
