@@ -1,8 +1,7 @@
 version: '1.0'
-name: OpenRunner 2
-syncEnabled: true
+name: OpenRunner
 projects:
-- name: Build 2
+- name: Build
   command: pnpm tauri build
   type: task
   cwd: src-tauri

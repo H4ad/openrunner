@@ -1,3 +1,5 @@
+use crate::database::config_db::ConfigDatabase;
+use crate::database::group_db::GroupDbManager;
 use crate::models::{AppConfig, ProcessInfo};
 use crate::platform::{create_platform_manager, PlatformProcessManager};
 use portable_pty::MasterPty;
@@ -11,6 +13,8 @@ pub struct ManagedProcess {
     pub child: Child,
     pub manually_stopped: bool,
     pub session_id: Option<String>,
+    /// Group ID this process belongs to
+    pub group_id: String,
     /// PTY master for interactive processes (optional)
     pub pty_master: Option<Box<dyn MasterPty + Send>>,
     /// PTY writer for sending input to interactive processes (optional)
@@ -35,11 +39,15 @@ impl PtyDimensions {
 }
 
 pub struct AppState {
+    /// In-memory configuration
     pub config: Mutex<AppConfig>,
+    /// Configuration database
+    pub config_db: Mutex<ConfigDatabase>,
+    /// Group database manager for logs/metrics
+    pub group_db_manager: GroupDbManager,
     pub processes: Mutex<HashMap<String, ManagedProcess>>,
     pub process_infos: Mutex<HashMap<String, ProcessInfo>>,
     pub log_dir: PathBuf,
-    pub db: Mutex<rusqlite::Connection>,
     /// Maps project_id to active session_id
     pub active_sessions: Mutex<HashMap<String, String>>,
     /// Path to the PID file for tracking running processes
@@ -48,29 +56,40 @@ pub struct AppState {
     platform_manager: Box<dyn PlatformProcessManager>,
     /// YAML file watcher
     pub yaml_watcher: Mutex<crate::file_watcher::YamlWatcher>,
+    /// Configuration directory path
+    pub config_dir: PathBuf,
+    /// Groups directory path
+    pub groups_dir: PathBuf,
 }
 
 impl AppState {
     pub fn new(
         config: AppConfig,
         log_dir: PathBuf,
-        db: rusqlite::Connection,
-        data_dir: PathBuf,
+        config_dir: PathBuf,
+        groups_dir: PathBuf,
     ) -> Self {
         let _ = std::fs::create_dir_all(&log_dir);
-        let pid_file_path = data_dir.join("running_pids.txt");
+        let pid_file_path = config_dir.join("running_pids.txt");
         let platform_manager = Box::new(create_platform_manager());
+
+        // Initialize databases
+        let config_db = ConfigDatabase::open(&config_dir).expect("Failed to open config database");
+        let group_db_manager = GroupDbManager::new(groups_dir.clone());
 
         Self {
             config: Mutex::new(config),
+            config_db: Mutex::new(config_db),
+            group_db_manager,
             processes: Mutex::new(HashMap::new()),
             process_infos: Mutex::new(HashMap::new()),
             log_dir,
-            db: Mutex::new(db),
             active_sessions: Mutex::new(HashMap::new()),
             pid_file_path,
             platform_manager,
             yaml_watcher: Mutex::new(crate::file_watcher::YamlWatcher::new()),
+            config_dir,
+            groups_dir,
         }
     }
 
@@ -124,17 +143,23 @@ impl AppState {
     pub fn platform(&self) -> &dyn PlatformProcessManager {
         self.platform_manager.as_ref()
     }
+
+    /// Get the config database (for convenience)
+    pub fn config_db(&self) -> std::sync::MutexGuard<'_, ConfigDatabase> {
+        self.config_db.lock().unwrap()
+    }
+
+    /// Get the group database manager (for convenience)
+    pub fn group_db(&self) -> &GroupDbManager {
+        &self.group_db_manager
+    }
 }
 
 impl Drop for AppState {
     fn drop(&mut self) {
         // Last-resort cleanup: kill all processes
-        // This runs when AppState is dropped (e.g., during panic or abnormal shutdown)
-
-        // First, kill any processes we're currently managing
         if let Ok(processes) = self.processes.lock() {
             for managed in processes.values() {
-                // Use real_pid for PTY processes, child.id() for regular processes
                 let pid_to_kill = if managed.is_interactive {
                     managed.real_pid
                 } else {

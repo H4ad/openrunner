@@ -1,5 +1,4 @@
 use super::PlatformProcessManager;
-use libc;
 use tokio::process::Command;
 
 pub struct LinuxProcessManager;

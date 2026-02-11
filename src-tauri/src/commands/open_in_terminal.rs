@@ -39,9 +39,9 @@ pub fn open_in_terminal(path: String) -> Result<(), Error> {
             }
         }
 
-        return Err(Error::SpawnError(
+        Err(Error::SpawnError(
             "No supported terminal found. Please install kitty, alacritty, wezterm, gnome-terminal, konsole, xfce4-terminal, or xterm.".to_string()
-        ));
+        ))
     }
 
     #[cfg(target_os = "macos")]

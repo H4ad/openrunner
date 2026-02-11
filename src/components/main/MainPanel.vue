@@ -18,9 +18,10 @@ const ui = useUiStore();
       :group-id="ui.selectedMonitorGroupId"
     />
     <SessionDetail
-      v-else-if="ui.viewMode === 'sessionDetail' && ui.selectedSessionId"
+      v-else-if="ui.viewMode === 'sessionDetail' && ui.selectedSessionId && ui.selectedSessionGroupId"
       :key="ui.selectedSessionId"
       :session-id="ui.selectedSessionId"
+      :group-id="ui.selectedSessionGroupId"
     />
     <ProjectDetail
       v-else-if="ui.selectedProject && ui.selectedGroup"

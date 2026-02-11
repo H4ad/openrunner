@@ -16,6 +16,7 @@ export const useUiStore = defineStore("ui", () => {
   const viewMode = ref<ViewMode>("project");
   const selectedMonitorGroupId = ref<string | null>(null);
   const selectedSessionId = ref<string | null>(null);
+  const selectedSessionGroupId = ref<string | null>(null);
   const showMonitor = ref(false);
   const selectedProjects = ref<ProjectSelection[]>([]);
   const lastSelectedProject = ref<ProjectSelection | null>(null);
@@ -143,14 +144,16 @@ export const useUiStore = defineStore("ui", () => {
     viewMode.value = "settings";
   }
 
-  function showSessionDetail(sessionId: string) {
+  function showSessionDetail(sessionId: string, groupId: string) {
     selectedSessionId.value = sessionId;
+    selectedSessionGroupId.value = groupId;
     viewMode.value = "sessionDetail";
   }
 
   function backToProject() {
     viewMode.value = "project";
     selectedSessionId.value = null;
+    selectedSessionGroupId.value = null;
   }
 
   return {
@@ -162,6 +165,7 @@ export const useUiStore = defineStore("ui", () => {
     viewMode,
     selectedMonitorGroupId,
     selectedSessionId,
+    selectedSessionGroupId,
     showMonitor,
     selectedProjects,
     lastSelectedProject,

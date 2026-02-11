@@ -1,11 +1,8 @@
-use crate::commands::utils::resolve_working_dir;
 use crate::error::Error;
-use crate::state::AppState;
 use crate::storage;
 use std::path::PathBuf;
 use std::process::Command;
-use std::sync::Arc;
-use tauri::{AppHandle, State};
+use tauri::AppHandle;
 
 #[tauri::command]
 pub fn open_file_in_editor(

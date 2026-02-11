@@ -48,7 +48,7 @@ pub fn restart_process(
                 resolve_working_dir(&group.directory, &project.cwd),
                 merged_env,
                 project.auto_restart,
-                project.project_type.clone(),
+                project.project_type,
                 project.interactive,
             )
         };
@@ -57,6 +57,7 @@ pub fn restart_process(
             &app,
             &state_arc,
             &pid,
+            &gid,
             &command,
             &working_dir,
             &env_vars,

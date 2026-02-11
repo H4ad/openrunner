@@ -72,15 +72,18 @@ async function writeExistingLogs() {
   }
 
   // Fallback: load from temp file on disk
-  try {
-    const data = await invoke<string>("read_project_logs", {
-      projectId: props.projectId,
-    });
-    if (data) {
-      terminal.write(data);
+  if (props.groupId) {
+    try {
+      const data = await invoke<string>("read_project_logs", {
+        groupId: props.groupId,
+        projectId: props.projectId,
+      });
+      if (data) {
+        terminal.write(data);
+      }
+    } catch {
+      // No saved logs
     }
-  } catch {
-    // No saved logs
   }
 }
 
@@ -321,10 +324,15 @@ function handleResize() {
 async function clearTerminal() {
   terminal?.clear();
   logs.clearProjectLogs(props.projectId);
-  try {
-    await invoke("clear_project_logs", { projectId: props.projectId });
-  } catch {
-    // Ignore
+  if (props.groupId) {
+    try {
+      await invoke("clear_project_logs", { 
+        groupId: props.groupId,
+        projectId: props.projectId 
+      });
+    } catch {
+      // Ignore
+    }
   }
   emit("clear");
 }

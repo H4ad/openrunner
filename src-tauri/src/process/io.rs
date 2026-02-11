@@ -1,13 +1,11 @@
-use crate::database;
 use crate::error::Error;
 use crate::models::{LogMessage, LogStream};
 use crate::state::AppState;
 use portable_pty::PtySize;
 use std::io::Write;
 use std::path::Path;
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tokio::io::AsyncReadExt;
 
 /// Read from a stream and emit log events
@@ -17,9 +15,9 @@ pub async fn read_stream<R: AsyncReadExt + Unpin>(
     project_id: &str,
     stream: LogStream,
     log_path: &Path,
-    session_id: &str,
+    _session_id: &str,
 ) {
-    let stream_str = match stream {
+    let _stream_str = match stream {
         LogStream::Stdout => "stdout",
         LogStream::Stderr => "stderr",
     };
@@ -43,11 +41,11 @@ pub async fn read_stream<R: AsyncReadExt + Unpin>(
                     let _ = file.write_all(data.as_bytes());
                 }
 
-                // Write to SQLite
-                let state = app_handle.state::<Arc<AppState>>();
-                if let Ok(db) = state.db.lock() {
-                    let _ = database::insert_log(&db, session_id, stream_str, &data, timestamp);
-                }
+                // Write to SQLite - TODO: fix to use group_db_manager
+                // let state = app_handle.state::<Arc<AppState>>();
+                // if let Ok(conn) = state.group_db_manager.get_connection(group_id) {
+                //     let _ = database::insert_log(&conn, session_id, stream_str, &data, timestamp);
+                // }
 
                 let msg = LogMessage {
                     project_id: project_id.to_string(),

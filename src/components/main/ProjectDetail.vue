@@ -86,7 +86,7 @@ const lastSession = ref<Session | null>(null);
 const lastMetric = ref<MetricPoint | null>(null);
 const lastSessionMetrics = ref<MetricPoint[]>([]);
 
-async function loadLastSessionData() {
+  async function loadLastSessionData() {
   if (status.value === "running") {
     lastSession.value = null;
     lastMetric.value = null;
@@ -94,11 +94,11 @@ async function loadLastSessionData() {
     return;
   }
   try {
-    const session = await sessionsStore.getLastSession(props.project.id);
+    const session = await sessionsStore.getLastSession(props.group.id, props.project.id);
     lastSession.value = session;
     if (session) {
-      lastMetric.value = await sessionsStore.getLastMetric(session.id);
-      lastSessionMetrics.value = await sessionsStore.getSessionMetrics(session.id);
+      lastMetric.value = await sessionsStore.getLastMetric(props.group.id, session.id);
+      lastSessionMetrics.value = await sessionsStore.getSessionMetrics(props.group.id, session.id);
     } else {
       lastMetric.value = null;
       lastSessionMetrics.value = [];
@@ -311,6 +311,7 @@ async function handleDelete() {
       v-if="showSessions"
       :project-id="props.project.id"
       :project-name="props.project.name"
+      :group-id="props.group.id"
       @close="showSessions = false"
     />
     <LogPanel

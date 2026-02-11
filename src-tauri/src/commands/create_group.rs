@@ -1,6 +1,5 @@
 use crate::commands::types::{Error, Group};
 use crate::state::AppState;
-use crate::storage;
 use crate::yaml_config;
 use std::collections::HashMap;
 use std::path::Path;
@@ -31,11 +30,10 @@ pub fn create_group(
         // Set sync_enabled - default to true if YAML exists
         group.sync_enabled = sync_enabled.unwrap_or(true);
 
-        // Save to config
+        // Save to database
         {
-            let mut config = state.config.lock().unwrap();
-            config.groups.push(group.clone());
-            storage::save_config(&app_handle, &config)?;
+            let config_db = state.config_db.lock().unwrap();
+            config_db.create_group(&group)?;
         }
 
         // Start watching the YAML file
@@ -62,11 +60,10 @@ pub fn create_group(
         yaml_config::write_yaml(&group, &yaml_path).map_err(Error::YamlConfig)?;
         group.sync_file = Some(yaml_path.to_string_lossy().to_string());
 
-        // Save to config
+        // Save to database
         {
-            let mut config = state.config.lock().unwrap();
-            config.groups.push(group.clone());
-            storage::save_config(&app_handle, &config)?;
+            let config_db = state.config_db.lock().unwrap();
+            config_db.create_group(&group)?;
         }
 
         // Start watching the YAML file
@@ -88,10 +85,10 @@ pub fn create_group(
             sync_enabled: false,
         };
 
+        // Save to database
         {
-            let mut config = state.config.lock().unwrap();
-            config.groups.push(group.clone());
-            storage::save_config(&app_handle, &config)?;
+            let config_db = state.config_db.lock().unwrap();
+            config_db.create_group(&group)?;
         }
 
         Ok(group)

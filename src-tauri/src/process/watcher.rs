@@ -23,7 +23,7 @@ pub async fn watch_exit(
     let platform = get_platform_manager();
 
     // Wait for process to exit
-    let (manually_stopped, exit_success, session_id, pid, _is_interactive) = {
+    let (manually_stopped, exit_success, session_id, group_id, pid, _is_interactive) = {
         loop {
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
@@ -35,17 +35,19 @@ pub async fn watch_exit(
                 if is_interactive {
                     if managed.manually_stopped {
                         let session_id = managed.session_id.clone();
+                        let group_id = managed.group_id.clone();
                         let pid = managed.real_pid;
                         processes.remove(project_id);
-                        break (true, true, session_id, pid, true);
+                        break (true, true, session_id, group_id, pid, true);
                     }
                     // Check if the real PTY process is still running
                     if let Some(real_pid) = managed.real_pid {
                         if !platform.is_process_running(real_pid) {
                             // Process has exited
                             let session_id = managed.session_id.clone();
+                            let group_id = managed.group_id.clone();
                             processes.remove(project_id);
-                            break (false, true, session_id, Some(real_pid), true);
+                            break (false, true, session_id, group_id, Some(real_pid), true);
                         }
                     }
                     // Continue waiting for PTY processes
@@ -58,17 +60,19 @@ pub async fn watch_exit(
                         let manually_stopped = managed.manually_stopped;
                         let exit_success = status.success();
                         let session_id = managed.session_id.clone();
+                        let group_id = managed.group_id.clone();
                         let pid = managed.child.id();
                         processes.remove(project_id);
-                        break (manually_stopped, exit_success, session_id, pid, false);
+                        break (manually_stopped, exit_success, session_id, group_id, pid, false);
                     }
                     Ok(None) => continue,
                     Err(_) => {
                         let manually_stopped = managed.manually_stopped;
                         let session_id = managed.session_id.clone();
+                        let group_id = managed.group_id.clone();
                         let pid = managed.child.id();
                         processes.remove(project_id);
-                        break (manually_stopped, false, session_id, pid, false);
+                        break (manually_stopped, false, session_id, group_id, pid, false);
                     }
                 }
             } else {
@@ -97,8 +101,8 @@ pub async fn watch_exit(
         } else {
             "errored"
         };
-        if let Ok(db) = state.db.lock() {
-            let _ = database::end_session(&db, sid, exit_status_str);
+        if let Ok(conn) = state.group_db_manager.get_connection(&group_id) {
+            let _ = database::end_session(&conn, sid, exit_status_str);
         }
         // Remove from active sessions
         let mut sessions = state.active_sessions.lock().unwrap();
@@ -131,7 +135,7 @@ pub async fn watch_exit(
                 .iter()
                 .flat_map(|g| &g.projects)
                 .find(|p| p.id == project_id)
-                .map(|p| (p.auto_restart, p.project_type.clone()))
+                .map(|p| (p.auto_restart, p.project_type))
                 .unwrap_or((false, ProjectType::Service))
         };
 
@@ -148,6 +152,7 @@ pub async fn watch_exit(
                     app_handle,
                     &state,
                     project_id,
+                    &group_id,
                     command,
                     working_dir,
                     env_vars,

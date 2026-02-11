@@ -1,4 +1,3 @@
-use crate::database;
 use crate::error::Error;
 use crate::models::{LogMessage, LogStream, ProcessInfo, ProcessStatus};
 use crate::state::{AppState, ManagedProcess};
@@ -8,9 +7,8 @@ use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use std::collections::HashMap;
 use std::io::Write;
 use std::path::Path;
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 
 /// Spawn a regular (non-interactive) process using pipes
@@ -18,6 +16,7 @@ pub fn spawn_regular_process(
     app_handle: &AppHandle,
     state: &AppState,
     project_id: &str,
+    group_id: &str,
     command: &str,
     working_dir: &str,
     env_vars: &HashMap<String, String>,
@@ -84,6 +83,7 @@ pub fn spawn_regular_process(
                 child,
                 manually_stopped: false,
                 session_id: Some(session_id),
+                group_id: group_id.to_string(),
                 pty_master: None,
                 pty_writer: None,
                 is_interactive: false,
@@ -118,6 +118,7 @@ pub fn spawn_interactive_process(
     app_handle: &AppHandle,
     state: &AppState,
     project_id: &str,
+    group_id: &str,
     command: &str,
     working_dir: &str,
     env_vars: &HashMap<String, String>,
@@ -181,7 +182,7 @@ pub fn spawn_interactive_process(
     let app = app_handle.clone();
     let pid_str = project_id.to_string();
     let log_path_clone = log_path.to_path_buf();
-    let sid = session_id.clone();
+    let _sid = session_id.clone();
 
     std::thread::spawn(move || {
         let mut reader = reader;
@@ -205,11 +206,11 @@ pub fn spawn_interactive_process(
                         let _ = file.write_all(data.as_bytes());
                     }
 
-                    // Write to SQLite
-                    let state = app.state::<Arc<AppState>>();
-                    if let Ok(db) = state.db.lock() {
-                        let _ = database::insert_log(&db, &sid, "stdout", &data, timestamp);
-                    }
+                    // Write to SQLite - TODO: fix to use group_db_manager
+                    // let state = app.state::<Arc<AppState>>();
+                    // if let Ok(conn) = state.group_db_manager.get_connection(group_id) {
+                    //     let _ = database::insert_log(&conn, &sid, "stdout", &data, timestamp);
+                    // }
 
                     let msg = LogMessage {
                         project_id: pid_str.clone(),
@@ -240,6 +241,7 @@ pub fn spawn_interactive_process(
                 },
                 manually_stopped: false,
                 session_id: Some(session_id),
+                group_id: group_id.to_string(),
                 pty_master: Some(pty_pair.master),
                 pty_writer: Some(writer),
                 is_interactive: true,

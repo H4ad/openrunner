@@ -8,8 +8,9 @@ use tauri::State;
 #[tauri::command]
 pub fn get_session(
     state: State<'_, Arc<AppState>>,
+    group_id: String,
     session_id: String,
 ) -> Result<Option<Session>, Error> {
-    let db = state.db.lock().unwrap();
-    database::get_session(&db, &session_id)
+    let conn = state.group_db_manager.get_connection(&group_id)?;
+    database::get_session(&conn, &session_id)
 }

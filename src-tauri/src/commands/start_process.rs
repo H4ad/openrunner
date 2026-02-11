@@ -31,7 +31,7 @@ pub async fn start_process(
             resolve_working_dir(&group.directory, &project.cwd),
             merged_env,
             project.auto_restart,
-            project.project_type.clone(),
+            project.project_type,
         )
     };
 
@@ -51,6 +51,7 @@ pub async fn start_process(
         &app_handle,
         app_state,
         &project_id,
+        &group_id,
         &command,
         &working_dir,
         &env_vars,

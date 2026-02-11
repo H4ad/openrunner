@@ -44,6 +44,7 @@ ChartJS.register(
 
 const props = defineProps<{
   sessionId: string;
+  groupId: string;
 }>();
 
 const sessions = useSessionsStore();
@@ -121,7 +122,7 @@ const chartOptions = {
 
 async function loadMetrics() {
   try {
-    metrics.value = await sessions.getSessionMetrics(props.sessionId);
+    metrics.value = await sessions.getSessionMetrics(props.groupId, props.sessionId);
     if (metrics.value.length > 0) {
       cpuChartData.value = {
         labels: metrics.value.map((p) =>
@@ -229,6 +230,7 @@ async function openFilePath(filePath: string, line?: number, column?: number) {
 async function loadSessionInfo() {
   try {
     const session = await invoke<{ projectId: string } | null>("get_session", {
+      groupId: props.groupId,
       sessionId: props.sessionId,
     });
     if (session) {
@@ -358,7 +360,7 @@ async function setupTerminal() {
 
   loading.value = true;
   try {
-    const logs = await sessions.getSessionLogs(props.sessionId);
+    const logs = await sessions.getSessionLogs(props.groupId, props.sessionId);
     if (logs) {
       terminal.write(logs);
     }

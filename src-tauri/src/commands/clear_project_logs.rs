@@ -7,11 +7,12 @@ use tauri::State;
 #[tauri::command]
 pub fn clear_project_logs(
     state: State<'_, Arc<AppState>>,
+    group_id: String,
     project_id: String,
 ) -> Result<(), Error> {
     // Clear from SQLite
-    if let Ok(db) = state.db.lock() {
-        let _ = database::clear_project_logs(&db, &project_id);
+    if let Ok(conn) = state.group_db_manager.get_connection(&group_id) {
+        let _ = database::clear_project_logs(&conn, &project_id);
     }
 
     // Also clear log file

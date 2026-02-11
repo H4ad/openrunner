@@ -195,20 +195,22 @@ function getLogLines(projectId: string): string[] {
   return lines.slice(-5);
 }
 
-async function loadProjectData() {
+  async function loadProjectData() {
   const projects = group.value?.projects ?? [];
+  const grp = group.value;
+  if (!grp) return;
   for (const project of projects) {
     try {
       // Load recent logs for all projects
-      const logs = await sessionsStore.getRecentLogs(project.id, 10);
+      const logs = await sessionsStore.getRecentLogs(grp.id, project.id, 10);
       if (logs) recentLogs.value.set(project.id, logs);
 
       // Load last session for non-running projects
       if (getStatus(project.id) !== "running") {
-        const session = await sessionsStore.getLastSession(project.id);
+        const session = await sessionsStore.getLastSession(grp.id, project.id);
         if (session) {
           lastSessions.value.set(project.id, session);
-          const metric = await sessionsStore.getLastMetric(session.id);
+          const metric = await sessionsStore.getLastMetric(grp.id, session.id);
           if (metric) lastMetrics.value.set(project.id, metric);
         }
       }

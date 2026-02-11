@@ -7,11 +7,12 @@ use tauri::State;
 #[tauri::command]
 pub fn read_project_logs(
     state: State<'_, Arc<AppState>>,
+    group_id: String,
     project_id: String,
 ) -> Result<String, Error> {
     // Try SQLite first
-    if let Ok(db) = state.db.lock() {
-        let logs = database::get_project_logs(&db, &project_id)?;
+    if let Ok(conn) = state.group_db_manager.get_connection(&group_id) {
+        let logs = database::get_project_logs(&conn, &project_id)?;
         if !logs.is_empty() {
             return Ok(logs);
         }

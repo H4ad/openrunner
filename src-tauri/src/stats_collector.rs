@@ -1,4 +1,3 @@
-use crate::database;
 use crate::models::{ProcessInfo, ProcessStatus};
 use crate::state::AppState;
 use std::sync::{Arc, Mutex};
@@ -164,26 +163,19 @@ pub fn start_collector(app_handle: AppHandle, state: Arc<AppState>) {
 
             // Write metrics to SQLite
             {
-                let timestamp = SystemTime::now()
+                let _timestamp = SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap_or_default()
                     .as_millis() as u64;
 
-                if let Ok(sessions) = state.active_sessions.lock() {
-                    if let Ok(db) = state.db.lock() {
-                        for info in &updated_infos {
-                            if let Some(session_id) = sessions.get(&info.project_id) {
-                                let _ = database::insert_metric(
-                                    &db,
-                                    session_id,
-                                    info.cpu_usage,
-                                    info.memory_usage,
-                                    timestamp,
-                                );
-                            }
-                        }
-                    }
-                }
+                // TODO: fix to use group_db_manager - need group_id for each session
+                // if let Ok(sessions) = state.active_sessions.lock() {
+                //     for info in &updated_infos {
+                //         if let Some(session_id) = sessions.get(&info.project_id) {
+                //             // Need to get group_id from somewhere
+                //         }
+                //     }
+                // }
             }
 
             if !updated_infos.is_empty() {

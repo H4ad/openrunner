@@ -41,10 +41,8 @@ pub fn get_session_logs_text(conn: &Connection, session_id: &str) -> Result<Stri
         .map_err(|e| Error::DatabaseError(e.to_string()))?;
 
     let mut result = String::new();
-    for row in rows {
-        if let Ok(data) = row {
-            result.push_str(&data);
-        }
+    for data in rows.flatten() {
+        result.push_str(&data);
     }
 
     Ok(result)
@@ -81,10 +79,8 @@ pub fn get_recent_logs(conn: &Connection, project_id: &str, limit: u32) -> Resul
                 .map_err(|e| Error::DatabaseError(e.to_string()))?;
 
             let mut result = String::new();
-            for row in rows {
-                if let Ok(data) = row {
-                    result.push_str(&data);
-                }
+            for data in rows.flatten() {
+                result.push_str(&data);
             }
             Ok(result)
         }

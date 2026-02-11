@@ -1,12 +1,11 @@
 use crate::error::Error;
 use crate::state::AppState;
-use crate::database;
 use crate::process::platform::get_platform_manager;
 use crate::process::emit_status_update;
-use crate::models::{ProcessInfo, ProcessStatus};
-use std::sync::Arc;
+use crate::models::ProcessStatus;
+use crate::database;
 use std::time::Duration;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 /// Stop a running process
 pub fn stop_process(state: &AppState, project_id: &str) -> Result<(), Error> {
@@ -51,8 +50,8 @@ pub fn kill_all_processes(state: &AppState) {
 
         // End session in SQLite
         if let Some(sid) = &managed.session_id {
-            if let Ok(db) = state.db.lock() {
-                let _ = database::end_session(&db, sid, "stopped");
+            if let Ok(conn) = state.group_db_manager.get_connection(&managed.group_id) {
+                let _ = database::end_session(&conn, sid, "stopped");
             }
         }
 
@@ -84,7 +83,7 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     let platform = get_platform_manager();
 
     // Collect all running process info
-    let process_info: Vec<(String, Option<u32>, Option<String>, bool)> = {
+    let process_info: Vec<(String, String, Option<u32>, Option<String>, bool)> = {
         let mut processes = state.processes.lock().unwrap();
         processes
             .iter_mut()
@@ -98,6 +97,7 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
                 };
                 (
                     project_id.clone(),
+                    managed.group_id.clone(),
                     pid,
                     managed.session_id.clone(),
                     managed.is_interactive,
@@ -111,12 +111,12 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     }
 
     // Update UI to show "stopping" status for all processes
-    for (project_id, pid, _, _) in &process_info {
+    for (project_id, _, pid, _, _) in &process_info {
         emit_status_update(app_handle, project_id, ProcessStatus::Stopping, *pid);
     }
 
     // Send graceful shutdown to all processes
-    for (_, pid, _, _) in &process_info {
+    for (_, _, pid, _, _) in &process_info {
         if let Some(p) = pid {
             platform.graceful_shutdown(*p);
         }
@@ -175,7 +175,7 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     }
 
     // Force kill any remaining processes
-    for (_, pid, _, _) in &process_info {
+    for (_, _, pid, _, _) in &process_info {
         if let Some(p) = pid {
             if platform.is_process_running(*p) {
                 platform.force_kill(*p);
@@ -184,10 +184,10 @@ pub async fn graceful_shutdown_all(app_handle: &AppHandle, state: &AppState) {
     }
 
     // End all sessions in SQLite
-    for (project_id, _, session_id, _) in &process_info {
+    for (project_id, group_id, _, session_id, _) in &process_info {
         if let Some(sid) = session_id {
-            if let Ok(db) = state.db.lock() {
-                let _ = database::end_session(&db, sid, "stopped");
+            if let Ok(conn) = state.group_db_manager.get_connection(group_id) {
+                let _ = database::end_session(&conn, sid, "stopped");
             }
         }
 

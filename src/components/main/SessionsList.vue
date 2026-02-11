@@ -12,6 +12,7 @@ import { ArrowLeftIcon, TrashIcon } from "@radix-icons/vue";
 const props = defineProps<{
   projectId: string;
   projectName: string;
+  groupId: string;
 }>();
 
 const emit = defineEmits<{
@@ -23,7 +24,7 @@ const ui = useUiStore();
 const deleteSessionId = ref<string | null>(null);
 
 onMounted(() => {
-  sessions.loadSessionsWithStats(props.projectId);
+  sessions.loadSessionsWithStats(props.groupId, props.projectId);
 });
 
 function formatDate(ts: number): string {
@@ -56,14 +57,14 @@ function statusLabel(session: SessionWithStats): string {
 }
 
 function viewSession(sessionId: string) {
-  ui.showSessionDetail(sessionId);
+  ui.showSessionDetail(sessionId, props.groupId);
 }
 
 async function handleDeleteSession() {
   if (deleteSessionId.value) {
-    await sessions.deleteSession(deleteSessionId.value);
+    await sessions.deleteSession(props.groupId, deleteSessionId.value);
     deleteSessionId.value = null;
-    sessions.loadSessionsWithStats(props.projectId);
+    sessions.loadSessionsWithStats(props.groupId, props.projectId);
   }
 }
 </script>

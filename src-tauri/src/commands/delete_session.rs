@@ -5,7 +5,11 @@ use std::sync::Arc;
 use tauri::State;
 
 #[tauri::command]
-pub fn delete_session(state: State<'_, Arc<AppState>>, session_id: String) -> Result<(), Error> {
-    let db = state.db.lock().unwrap();
-    database::delete_session(&db, &session_id)
+pub fn delete_session(
+    state: State<'_, Arc<AppState>>,
+    group_id: String,
+    session_id: String,
+) -> Result<(), Error> {
+    let conn = state.group_db_manager.get_connection(&group_id)?;
+    database::delete_session(&conn, &session_id)
 }

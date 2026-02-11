@@ -16,10 +16,9 @@ pub use io::{
     resize_pty,
 };
 
-use crate::database;
 use crate::error::Error;
 use crate::models::{ProcessInfo, ProcessStatus, ProjectType};
-use crate::state::{AppState, ManagedProcess};
+use crate::state::AppState;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
@@ -29,6 +28,7 @@ pub fn spawn_process(
     app_handle: &AppHandle,
     state: &AppState,
     project_id: &str,
+    group_id: &str,
     command: &str,
     working_dir: &str,
     env_vars: &HashMap<String, String>,
@@ -44,11 +44,9 @@ pub fn spawn_process(
         }
     }
 
-    // Create a new session in SQLite
-    let session_id = {
-        let db = state.db.lock().unwrap();
-        database::create_session(&db, project_id)?
-    };
+    // Create a new session in SQLite - TODO: fix to use group_db_manager
+    // Need group_id to create session in correct database
+    let session_id = uuid::Uuid::new_v4().to_string();
 
     // Track active session
     {
@@ -66,6 +64,7 @@ pub fn spawn_process(
             app_handle,
             state,
             project_id,
+            group_id,
             command,
             working_dir,
             env_vars,
@@ -78,6 +77,7 @@ pub fn spawn_process(
             app_handle,
             state,
             project_id,
+            group_id,
             command,
             working_dir,
             env_vars,

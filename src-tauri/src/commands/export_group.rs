@@ -1,4 +1,4 @@
-use crate::commands::types::{Error, Group, Project};
+use crate::commands::types::Error;
 use crate::state::AppState;
 use crate::yaml_config::{YamlConfig, YamlProject, YamlProjectType};
 use std::sync::Arc;

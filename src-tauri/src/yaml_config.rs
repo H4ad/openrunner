@@ -97,7 +97,7 @@ pub fn write_yaml(group: &Group, path: &Path) -> Result<(), String> {
         .map(|p| YamlProject {
             name: p.name.clone(),
             command: p.command.clone(),
-            project_type: p.project_type.clone().into(),
+            project_type: p.project_type.into(),
             auto_restart: if p.auto_restart { Some(true) } else { None },
             cwd: p.cwd.clone(),
             interactive: if p.interactive { Some(true) } else { None },

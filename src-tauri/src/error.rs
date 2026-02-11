@@ -29,6 +29,9 @@ pub enum Error {
     #[error("Database error: {0}")]
     DatabaseError(String),
 
+    #[error("SQLite error: {0}")]
+    SqliteError(#[from] rusqlite::Error),
+
     #[error("File not found: {0}")]
     FileNotFound(String),
 

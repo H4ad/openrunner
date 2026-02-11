@@ -1,35 +1,38 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
 import type { AppSettings } from "../types";
+import * as db from "../services/database";
 
 export const useSettingsStore = defineStore("settings", () => {
   const maxLogLines = ref(10_000);
   const editor = ref<string | null>(null);
 
   async function load() {
-    const settings = await invoke<AppSettings>("get_settings");
+    const settings = await db.getSettings();
     maxLogLines.value = settings.maxLogLines;
     editor.value = settings.editor;
   }
 
   async function updateMaxLogLines(value: number) {
-    const settings = await invoke<AppSettings>("update_settings", {
+    const settings: AppSettings = {
       maxLogLines: value,
-    });
-    maxLogLines.value = settings.maxLogLines;
-    editor.value = settings.editor;
+      editor: editor.value,
+    };
+    await db.updateSettings(settings);
+    maxLogLines.value = value;
   }
 
   async function updateEditor(value: string) {
-    const settings = await invoke<AppSettings>("update_settings", {
+    const settings: AppSettings = {
+      maxLogLines: maxLogLines.value,
       editor: value,
-    });
-    maxLogLines.value = settings.maxLogLines;
-    editor.value = settings.editor;
+    };
+    await db.updateSettings(settings);
+    editor.value = value;
   }
 
   async function detectSystemEditor(): Promise<string> {
+    const { invoke } = await import("@tauri-apps/api/core");
     return await invoke<string>("detect_system_editor");
   }
 
