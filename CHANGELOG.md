@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.9](https://github.com/H4ad/openrunner/compare/v0.2.8...v0.2.9) (2026-02-12)
+
+
+### Bug Fixes
+
+* **icon:** another attempt to fix the icon ([1b2e355](https://github.com/H4ad/openrunner/commit/1b2e35523a0037897b2b0aa30b96ff599a4ed6f1))
+
 ## [0.2.8](https://github.com/H4ad/openrunner/compare/v0.2.7...v0.2.8) (2026-02-12)
 
 
