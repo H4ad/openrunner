@@ -55,6 +55,7 @@ linux:
   desktop:
     entry:
       StartupWMClass: openrunner
+      Icon: openrunner
 
 # Include build resources in the packaged app
 extraResources:
