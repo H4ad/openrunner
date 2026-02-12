@@ -12,6 +12,7 @@ import { registerStorageHandlers } from './storage';
 import { registerFileHandlers } from './files';
 import { registerWindowHandlers } from './window';
 import { registerUpdatesHandlers } from './updates';
+import { registerCliHandlers } from './cli';
 
 /**
  * Register all IPC handlers for the application
@@ -26,4 +27,5 @@ export function registerAllHandlers(): void {
   registerFileHandlers();
   registerWindowHandlers();
   registerUpdatesHandlers();
+  registerCliHandlers();
 }

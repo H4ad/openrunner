@@ -14,7 +14,9 @@
   ],
   "asarUnpack": [
     "node_modules/better-sqlite3/**",
-    "node_modules/node-pty/**"
+    "node_modules/node-pty/**",
+    "out/main/cli.js",
+    "out/main/chunks/**"
   ],
   "mac": {
     "target": [

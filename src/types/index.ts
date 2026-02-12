@@ -83,3 +83,11 @@ export interface StorageStats {
 export interface AppConfig {
   groups: Group[];
 }
+
+export interface CliInstallResult {
+  success: boolean;
+  message: string;
+  installed: boolean;
+  path?: string;
+  requiresSudo?: boolean;
+}

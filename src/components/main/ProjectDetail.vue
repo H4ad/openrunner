@@ -178,7 +178,8 @@ async function handleDelete() {
   }
   await config.deleteProject(props.group.id, props.project.id);
   showDeleteDialog.value = false;
-  ui.clearSelection();
+  // Navigate to group monitor instead of home to stay in context
+  ui.showGroupMonitor(props.group.id);
 }
 
 function openWatchPatternsDialog() {
