@@ -16,7 +16,7 @@ Sentry.init({
   ],
 });
 
-import { app, BrowserWindow, shell, ipcMain, dialog, globalShortcut, nativeImage } from 'electron';
+import { app, BrowserWindow, shell, ipcMain, dialog, globalShortcut } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { registerAllHandlers } from './ipc';
@@ -27,6 +27,7 @@ import { startStatsCollection, stopStatsCollection } from './services/stats-coll
 import { getYamlWatcher } from './services/yaml-watcher';
 import { initAutoUpdater, checkForUpdates } from './services/auto-updater';
 import { initSystemTray, destroySystemTray, setQuitting, isAppQuitting } from './services/system-tray';
+import { getAppIcon } from './services/app-icon';
 import { IPC_EVENTS, IPC_CHANNELS } from '../shared/events';
 
 // Keep a global reference to prevent garbage collection
@@ -40,26 +41,8 @@ app.name = 'openrunner';
  * Create the main application window
  */
 function createWindow(): void {
-  // Load app icon - check multiple paths for dev vs production
-  let appIcon: Electron.NativeImage | undefined;
-  const possiblePaths = [
-    // Development: relative to out/main/index.js
-    join(__dirname, '../../build/icon.png'),
-    // Production: in resources directory
-    join(process.resourcesPath, 'build/icon.png'),
-  ];
-  
-  for (const iconPath of possiblePaths) {
-    try {
-      const tempIcon = nativeImage.createFromPath(iconPath);
-      if (!tempIcon.isEmpty()) {
-        appIcon = tempIcon;
-        break;
-      }
-    } catch {
-      // Try next path
-    }
-  }
+  // Load app icon from embedded base64
+  const appIcon = getAppIcon();
 
   mainWindow = new BrowserWindow({
     width: 1200,
@@ -69,6 +52,8 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     title: 'OpenRunner',
+    // Note: On Linux/Wayland, icon in constructor doesn't work properly
+    // We call setIcon() immediately after creation instead
     icon: appIcon,
     webPreferences: {
       preload: join(__dirname, '../preload/index.mjs'),
@@ -77,6 +62,10 @@ function createWindow(): void {
       nodeIntegration: false,
     },
   });
+
+  // Set icon immediately after window creation (Linux/Wayland workaround)
+  // See: https://github.com/electron/electron/issues/49285
+  mainWindow.setIcon(appIcon);
 
   mainWindow.on('ready-to-show', () => {
     mainWindow?.show();

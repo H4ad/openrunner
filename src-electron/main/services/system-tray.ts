@@ -3,39 +3,12 @@
  * Manages the system tray icon and context menu.
  */
 
-import { Tray, Menu, nativeImage, BrowserWindow, app } from 'electron';
-import { join } from 'path';
+import { Tray, Menu, BrowserWindow, app } from 'electron';
+import { getTrayIcon } from './app-icon';
 
 let tray: Tray | null = null;
 let mainWindowRef: BrowserWindow | null = null;
 let isQuitting = false;
-
-/**
- * Load the tray icon from available paths
- */
-function loadTrayIcon(): Electron.NativeImage {
-  const possiblePaths = [
-    // Development: relative to out/main/index.js
-    join(__dirname, '../../build/icon.png'),
-    // Production: in resources directory
-    join(process.resourcesPath, 'build/icon.png'),
-  ];
-
-  for (const iconPath of possiblePaths) {
-    try {
-      const icon = nativeImage.createFromPath(iconPath);
-      if (!icon.isEmpty()) {
-        // Resize for tray (typically 16x16 or 22x22 on Linux)
-        return icon.resize({ width: 22, height: 22 });
-      }
-    } catch {
-      // Try next path
-    }
-  }
-
-  // Return empty image as fallback (Electron will use default)
-  return nativeImage.createEmpty();
-}
 
 /**
  * Build the context menu for the tray
@@ -101,7 +74,7 @@ export function setQuitting(value: boolean): void {
 export function initSystemTray(mainWindow: BrowserWindow): Tray {
   mainWindowRef = mainWindow;
 
-  const icon = loadTrayIcon();
+  const icon = getTrayIcon();
   tray = new Tray(icon);
 
   tray.setToolTip('OpenRunner');
