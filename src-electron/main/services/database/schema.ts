@@ -29,6 +29,7 @@ export function initSchema(db: Database): void {
       cwd TEXT,
       project_type TEXT NOT NULL DEFAULT 'service',
       interactive INTEGER NOT NULL DEFAULT 0,
+      watch_patterns TEXT,
       FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
     );
 

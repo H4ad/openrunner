@@ -8,6 +8,7 @@ import type { ProcessStatus } from '../../../shared/types';
 import { getState } from '../state';
 import { getPlatformManager } from '../../platform';
 import { emitStatusUpdate } from './index';
+import { stopFileWatcher } from '../file-watcher';
 
 /**
  * Stop a running process
@@ -37,12 +38,15 @@ export async function stopProcess(projectId: string): Promise<void> {
       }
     }, 5000);
   }
+
+  // Stop file watcher
+  stopFileWatcher(projectId);
 }
 
 /**
  * Kill all running processes immediately
  */
-export function killAllProcesses(): void {
+export async function killAllProcesses(): Promise<void> {
   const state = getState();
   const platform = getPlatformManager();
 
@@ -82,6 +86,10 @@ export function killAllProcesses(): void {
 
   state.processes.clear();
   state.clearPidFile();
+
+  // Stop all file watchers
+  const { stopAllFileWatchers } = await import('../file-watcher');
+  stopAllFileWatchers();
 }
 
 /**

@@ -15,6 +15,8 @@ import { getState } from '../state';
 import { spawnRegularProcess, spawnInteractiveProcess } from './spawn';
 import { watchExit } from './watcher';
 import { IPC_EVENTS } from '../../../shared/events';
+import { startFileWatcher, stopFileWatcher } from '../file-watcher';
+import { restartProcess } from './restart';
 
 /**
  * Spawn a process for a project
@@ -94,6 +96,25 @@ export async function spawnProcess(
     projectType,
     interactive
   );
+
+  // Start file watcher if autoRestart is enabled and project is a service
+  if (autoRestart && projectType === 'service') {
+    // Find the project to get watch patterns and the group for groupDir
+    const projectResult = state.findProject(projectId);
+    const group = state.findGroup(groupId);
+    if (projectResult && group) {
+      startFileWatcher({
+        projectId,
+        watchDir: workingDir,
+        groupDir: group.directory,
+        patterns: projectResult.project.watchPatterns,
+        onChange: (changedFile) => {
+          // Trigger restart when files change
+          restartProcess(projectId, changedFile);
+        },
+      });
+    }
+  }
 }
 
 /**

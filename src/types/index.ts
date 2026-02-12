@@ -9,6 +9,7 @@ export interface Project {
   cwd: string | null;
   projectType: ProjectType;
   interactive: boolean;
+  watchPatterns?: string[];
 }
 
 export interface Group {

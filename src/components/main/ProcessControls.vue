@@ -6,14 +6,19 @@ import { useConfigStore } from "../../stores/config";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { PlayIcon, StopIcon, ReloadIcon } from "@radix-icons/vue";
+import { PlayIcon, StopIcon, ReloadIcon, EyeOpenIcon } from "@radix-icons/vue";
 
 const props = defineProps<{
   projectId: string;
   groupId: string;
   status: ProcessStatus;
   autoRestart: boolean;
+  watchPatterns?: string[];
   getTerminalDimensions?: () => { cols: number; rows: number } | null;
+}>();
+
+const emit = defineEmits<{
+  editWatchPatterns: [];
 }>();
 
 const processes = useProcessesStore();
@@ -98,6 +103,16 @@ async function toggleAutoRestart() {
         :model-value="autoRestart"
         @update:model-value="toggleAutoRestart"
       />
+      <Button
+        v-if="autoRestart"
+        variant="ghost"
+        size="icon"
+        class="h-7 w-7"
+        title="Edit Watch Patterns"
+        @click="emit('editWatchPatterns')"
+      >
+        <EyeOpenIcon class="h-3.5 w-3.5" />
+      </Button>
     </div>
   </div>
 </template>

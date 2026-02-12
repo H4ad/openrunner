@@ -8,6 +8,9 @@ import { IPC_CHANNELS } from '../../shared/events';
 import { getState } from '../services/state';
 import * as yamlConfig from '../services/yaml-config';
 import { getYamlWatcher } from '../services/yaml-watcher';
+import { startFileWatcher, stopFileWatcher } from '../services/file-watcher';
+import { restartProcess } from '../services/process-manager/restart';
+import * as path from 'path';
 import type { Project, Group, ProjectType } from '../../shared/types';
 
 export function registerProjectHandlers(): void {
@@ -15,7 +18,7 @@ export function registerProjectHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.CREATE_PROJECT,
     async (
-      _,
+      _event,
       args: {
         groupId: string;
         project: Omit<Project, 'id'>;
@@ -56,7 +59,7 @@ export function registerProjectHandlers(): void {
   ipcMain.handle(
     IPC_CHANNELS.UPDATE_PROJECT,
     async (
-      _,
+      _event,
       args: {
         groupId: string;
         project: Project;
@@ -77,11 +80,53 @@ export function registerProjectHandlers(): void {
         throw new Error(`Project not found: ${project.id}`);
       }
 
+      // Get the old project to check if file watcher needs restart
+      const oldProject = group.projects[projectIndex];
+      const wasRunning = state.processes.has(project.id);
+
       // Update database
       state.database.updateProject(project);
 
-      // Update in-memory state
-      group.projects[projectIndex] = project;
+      // Reload project from database to ensure all fields are correct
+      // (handles undefined values that may have been stripped during IPC)
+      const updatedProject = state.database.getProject(project.id);
+      if (!updatedProject) {
+        throw new Error(`Failed to reload project after update: ${project.id}`);
+      }
+      // Remove groupId from the project returned by getProject
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { groupId: _groupId, ...projectWithoutGroupId } = updatedProject;
+
+      // Update in-memory state with the reloaded project
+      group.projects[projectIndex] = projectWithoutGroupId;
+
+      // Restart file watcher if patterns changed and process is running
+      // Use projectWithoutGroupId (reloaded from DB) for accurate comparison
+      if (wasRunning && projectWithoutGroupId.projectType === 'service' && projectWithoutGroupId.autoRestart) {
+        const patternsChanged = JSON.stringify(oldProject.watchPatterns) !== JSON.stringify(projectWithoutGroupId.watchPatterns);
+        const autoRestartChanged = oldProject.autoRestart !== projectWithoutGroupId.autoRestart;
+        const projectTypeChanged = oldProject.projectType !== projectWithoutGroupId.projectType;
+
+        if (patternsChanged || autoRestartChanged || projectTypeChanged) {
+          // Stop existing watcher
+          stopFileWatcher(projectWithoutGroupId.id);
+
+          // Start new watcher with updated patterns
+          const workingDir = projectWithoutGroupId.cwd ? path.resolve(group.directory, projectWithoutGroupId.cwd) : group.directory;
+          startFileWatcher({
+            projectId: projectWithoutGroupId.id,
+            watchDir: workingDir,
+            groupDir: group.directory,
+            patterns: projectWithoutGroupId.watchPatterns,
+            onChange: (changedFile) => {
+              restartProcess(projectWithoutGroupId.id, changedFile);
+            },
+          });
+        }
+      } else if (wasRunning && (!projectWithoutGroupId.autoRestart || projectWithoutGroupId.projectType !== 'service')) {
+        // Stop watcher if autoRestart was disabled or project type changed to task
+        stopFileWatcher(projectWithoutGroupId.id);
+      }
 
       // Sync to YAML if enabled
       if (group.syncEnabled && group.syncFile) {
