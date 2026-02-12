@@ -8,6 +8,7 @@ import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { registerAllHandlers } from './ipc';
 import { setMainWindow as setProcessMainWindow } from './ipc/processes';
+import { setRestartMainWindow } from './services/process-manager/restart';
 import { initializeState, getState, shutdownState } from './services/state';
 import { startStatsCollection, stopStatsCollection } from './services/stats-collector';
 import { getYamlWatcher } from './services/yaml-watcher';
@@ -17,17 +18,33 @@ import { IPC_EVENTS, IPC_CHANNELS } from '../shared/events';
 // Keep a global reference to prevent garbage collection
 let mainWindow: BrowserWindow | null = null;
 
+// Set the app name to match the productName/StartupWMClass for proper Linux taskbar icon association
+// This must be done before the app is ready for GNOME/KDE to correctly match the .desktop file
+app.name = 'openrunner';
+
 /**
  * Create the main application window
  */
 function createWindow(): void {
-  // Load app icon
+  // Load app icon - check multiple paths for dev vs production
   let appIcon: Electron.NativeImage | undefined;
-  try {
-    const iconPath = join(__dirname, '../../build/icon.png');
-    appIcon = nativeImage.createFromPath(iconPath);
-  } catch {
-    // Icon not found, will use default
+  const possiblePaths = [
+    // Development: relative to out/main/index.js
+    join(__dirname, '../../build/icon.png'),
+    // Production: in resources directory
+    join(process.resourcesPath, 'build/icon.png'),
+  ];
+  
+  for (const iconPath of possiblePaths) {
+    try {
+      const tempIcon = nativeImage.createFromPath(iconPath);
+      if (!tempIcon.isEmpty()) {
+        appIcon = tempIcon;
+        break;
+      }
+    } catch {
+      // Try next path
+    }
   }
 
   mainWindow = new BrowserWindow({
@@ -107,6 +124,7 @@ function createWindow(): void {
       
       // Set main window for process manager and yaml watcher
       setProcessMainWindow(mainWindow);
+      setRestartMainWindow(mainWindow);
       getYamlWatcher().setMainWindow(mainWindow);
       
       // Sync YAML watchers for existing groups
