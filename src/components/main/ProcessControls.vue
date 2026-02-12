@@ -13,6 +13,7 @@ const props = defineProps<{
   groupId: string;
   status: ProcessStatus;
   autoRestart: boolean;
+  getTerminalDimensions?: () => { cols: number; rows: number } | null;
 }>();
 
 const processes = useProcessesStore();
@@ -24,7 +25,8 @@ const isRunning = computed(() => props.status === "running");
 async function start() {
   loading.value = true;
   try {
-    await processes.startProcess(props.groupId, props.projectId);
+    const dims = props.getTerminalDimensions?.();
+    await processes.startProcess(props.groupId, props.projectId, dims?.cols, dims?.rows);
   } finally {
     loading.value = false;
   }

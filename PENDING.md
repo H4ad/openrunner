@@ -145,3 +145,7 @@
 ## 26. Rust-Only Data Access for UI
 - **Status:** Done
 - **Description:** Moved UI reads to Rust commands (sessions, logs, metrics, settings) and removed tauri-plugin-sql along with unused frontend database services to eliminate duplicate data access paths.
+
+## 28. Auto-Updater with GitHub Releases
+- **Status:** Done
+- **Description:** Added auto-update functionality using electron-updater with GitHub Releases as the update server. Features include: check for updates on app launch (with 10s delay), manual check via Settings page, update badge on sidebar gear icon, toast notifications when update is available/ready, download progress bar, and restart-to-update button. On macOS (without code signing), opens the GitHub releases page for manual download.

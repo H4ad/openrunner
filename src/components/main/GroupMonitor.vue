@@ -4,8 +4,8 @@ import { useConfigStore } from "../../stores/config";
 import { useProcessesStore } from "../../stores/processes";
 import { useSessionsStore } from "../../stores/sessions";
 import { useUiStore } from "../../stores/ui";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import type { ProcessInfo, Session, MetricPoint, ProjectType } from "../../types";
+import { listen, type UnlistenFn } from "@/lib/api";
+import type { ProcessInfo, Session, MetricPoint, ProjectType, LogMessage } from "../../types";
 import StatusBadge from "../shared/StatusBadge.vue";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
 import SparklineChart from "../shared/SparklineChart.vue";
@@ -52,7 +52,7 @@ const sparklineData = ref<Map<string, { cpu: number[]; mem: number[] }>>(
 // Track last session and metrics per project (for stopped projects)
 const lastSessions = ref<Map<string, Session>>(new Map());
 const lastMetrics = ref<Map<string, MetricPoint>>(new Map());
-const recentLogs = ref<Map<string, string>>(new Map());
+const recentLogs = ref<Map<string, LogMessage[]>>(new Map());
 const now = ref(Date.now());
 
 const MAX_SPARKLINE = 30;
@@ -187,12 +187,14 @@ function formatDuration(start: number, end: number): string {
 }
 
 function getLogLines(projectId: string): string[] {
-  const raw = recentLogs.value.get(projectId) ?? "";
+  const raw = recentLogs.value.get(projectId) ?? [];
   if (!raw) return [];
-  // Strip ANSI escape codes for plain text display
-  const stripped = raw.replace(/\x1b\[[0-9;]*m/g, "");
-  const lines = stripped.split("\n").filter((l) => l.trim().length > 0);
-  return lines.slice(-5);
+  return raw.flatMap(rawLine => {
+    // Strip ANSI escape codes for plain text display
+    const stripped = rawLine.data.replace(/\x1b\[[0-9;]*m/g, "");
+    const lines = stripped.split("\n").filter((l) => l.trim().length > 0);
+    return lines.slice(-5);
+  })
 }
 
   async function loadProjectData() {
@@ -221,8 +223,8 @@ function getLogLines(projectId: string): string[] {
 }
 
 onMounted(async () => {
-  unlisten = await listen<ProcessInfo[]>("process-stats-updated", (event) => {
-    for (const info of event.payload) {
+  unlisten = await listen<ProcessInfo[]>("process-stats-updated", (payload) => {
+    for (const info of payload) {
       if (!group.value?.projects.some((p) => p.id === info.projectId))
         continue;
 

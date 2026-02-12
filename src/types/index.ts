@@ -44,6 +44,7 @@ export interface AppSettings {
   maxLogLines: number;
   editor: string | null;
   linuxGpuOptimization: boolean | null;
+  fullscreen: boolean | null;
 }
 
 export interface Session {

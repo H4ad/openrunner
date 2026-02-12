@@ -1,6 +1,6 @@
 # OpenRunner
 
-![OpenRunner Logo](logo.svg)
+<img src=".github/assets/app-ui.png" alt="OpenRunner app UI" style="max-width: 512px;" />
 
 **OpenRunner** is a desktop application that helps developers organize and run their terminal commands. Think of it as a mission control for your development workflows - no more hunting through shell history or keeping notes in text files.
 
@@ -91,7 +91,7 @@ See [BUILDING.md](BUILDING.md) for detailed instructions.
 git clone https://github.com/yourusername/openrunner.git
 cd openrunner
 pnpm install
-pnpm tauri dev
+pnpm dev
 ```
 
 ## Usage
@@ -122,10 +122,10 @@ pnpm tauri dev
 OpenRunner is built with modern web technologies packaged as a desktop app:
 
 - **Frontend**: Vue 3 with TypeScript and Tailwind CSS
-- **Backend**: Rust with Tauri 2 framework
+- **Backend**: Electron with Node.js/TypeScript
 - **Terminal**: xterm.js for terminal emulation
 - **Charts**: Chart.js for resource monitoring
-- **Database**: SQLite for persistence
+- **Database**: SQLite (better-sqlite3) for persistence
 
 ## Contributing
 
@@ -144,7 +144,7 @@ OpenRunner is released under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
-- Built with [Tauri](https://tauri.app/) - the amazing Rust-based desktop framework
+- Built with [Electron](https://www.electronjs.org/) - cross-platform desktop framework
 - Terminal powered by [xterm.js](https://xtermjs.org/)
 - Charts by [Chart.js](https://www.chartjs.org/)
 - UI styled with [Tailwind CSS](https://tailwindcss.com/)

@@ -1,12 +1,13 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { listen } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@/lib/api";
 import { useSettingsStore } from "./settings";
 import type { LogMessage } from "../types";
 
 export const useLogsStore = defineStore("logs", () => {
   const logs = ref<Map<string, LogMessage[]>>(new Map());
   let initialized = false;
+  let unlistenLog: UnlistenFn | null = null;
 
   function getProjectLogs(projectId: string): LogMessage[] {
     return logs.value.get(projectId) ?? [];
@@ -22,8 +23,7 @@ export const useLogsStore = defineStore("logs", () => {
 
     const settings = useSettingsStore();
 
-    listen<LogMessage>("process-log", (event) => {
-      const msg = event.payload;
+    unlistenLog = await listen<LogMessage>("process-log", (msg) => {
       let buffer = logs.value.get(msg.projectId);
       if (!buffer) {
         buffer = [];
@@ -37,10 +37,16 @@ export const useLogsStore = defineStore("logs", () => {
     });
   }
 
+  function cleanup() {
+    unlistenLog?.();
+    initialized = false;
+  }
+
   return {
     logs,
     getProjectLogs,
     clearProjectLogs,
     init,
+    cleanup,
   };
 });

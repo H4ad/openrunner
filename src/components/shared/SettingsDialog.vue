@@ -4,6 +4,7 @@ import { useSettingsStore } from "../../stores/settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import {
   Dialog,
   DialogContent,
@@ -22,18 +23,21 @@ const emit = defineEmits<{
 
 const settings = useSettingsStore();
 const maxLogLines = ref(settings.maxLogLines);
+const fullscreen = ref(settings.fullscreen ?? false);
 
 watch(
   () => props.open,
   (isOpen) => {
     if (isOpen) {
       maxLogLines.value = settings.maxLogLines;
+      fullscreen.value = settings.fullscreen ?? false;
     }
   },
 );
 
 async function save() {
   await settings.updateMaxLogLines(maxLogLines.value);
+  await settings.updateFullscreen(fullscreen.value);
   emit("close");
 }
 
@@ -64,6 +68,20 @@ function handleOpenChange(open: boolean) {
           <p class="text-xs text-muted-foreground">
             Number of log lines to keep in memory per project (1,000 - 100,000).
           </p>
+        </div>
+
+        <div class="flex items-center justify-between space-y-0 py-2">
+          <div class="space-y-0.5">
+            <Label for="fullscreen">Fullscreen</Label>
+            <p class="text-xs text-muted-foreground">
+              Start app in fullscreen mode (toggle with F11).
+            </p>
+          </div>
+          <Switch
+            id="fullscreen"
+            :model-value="fullscreen"
+            @update:model-value="fullscreen = $event"
+          />
         </div>
 
         <DialogFooter class="flex flex-row justify-end gap-2">

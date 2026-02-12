@@ -4,8 +4,8 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { SearchAddon } from "@xterm/addon-search";
 import { WebLinksAddon } from "@xterm/addon-web-links";
-import { open } from "@tauri-apps/plugin-shell";
-import { invoke } from "@tauri-apps/api/core";
+import { open } from "@/lib/shell";
+import { invoke } from "@/lib/api";
 import "@xterm/xterm/css/xterm.css";
 import { Line } from "vue-chartjs";
 import {

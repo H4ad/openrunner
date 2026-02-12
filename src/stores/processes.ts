@@ -1,19 +1,20 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
+import { invoke, listen, type UnlistenFn } from "@/lib/api";
 import type { ProcessInfo } from "../types";
 
 export const useProcessesStore = defineStore("processes", () => {
   const statuses = ref<Map<string, ProcessInfo>>(new Map());
   let initialized = false;
+  let unlistenStatus: UnlistenFn | null = null;
+  let unlistenStats: UnlistenFn | null = null;
 
   function getStatus(projectId: string): ProcessInfo | undefined {
     return statuses.value.get(projectId);
   }
 
-  async function startProcess(groupId: string, projectId: string) {
-    await invoke("start_process", { groupId, projectId });
+  async function startProcess(groupId: string, projectId: string, cols?: number, rows?: number) {
+    await invoke("start_process", { groupId, projectId, cols, rows });
   }
 
   async function stopProcess(projectId: string) {
@@ -55,12 +56,12 @@ export const useProcessesStore = defineStore("processes", () => {
 
     await loadStatuses();
 
-    listen<ProcessInfo>("process-status-changed", (event) => {
-      statuses.value.set(event.payload.projectId, event.payload);
+    unlistenStatus = await listen<ProcessInfo>("process-status-changed", (payload) => {
+      statuses.value.set(payload.projectId, payload);
     });
 
-    listen<ProcessInfo[]>("process-stats-updated", (event) => {
-      for (const info of event.payload) {
+    unlistenStats = await listen<ProcessInfo[]>("process-stats-updated", (payload) => {
+      for (const info of payload) {
         const existing = statuses.value.get(info.projectId);
         if (existing) {
           existing.cpuUsage = info.cpuUsage;
@@ -68,6 +69,12 @@ export const useProcessesStore = defineStore("processes", () => {
         }
       }
     });
+  }
+
+  function cleanup() {
+    unlistenStatus?.();
+    unlistenStats?.();
+    initialized = false;
   }
 
   return {
@@ -80,5 +87,6 @@ export const useProcessesStore = defineStore("processes", () => {
     stopAllInGroup,
     loadStatuses,
     init,
+    cleanup,
   };
 });

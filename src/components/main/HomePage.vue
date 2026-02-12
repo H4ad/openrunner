@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { invoke, listen, type UnlistenFn } from "@/lib/api";
 import { useConfigStore } from "../../stores/config";
 import { useProcessesStore } from "../../stores/processes";
 import { useLogsStore } from "../../stores/logs";
@@ -24,7 +23,7 @@ import {
   StopIcon,
   UploadIcon,
 } from "@radix-icons/vue";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open } from "@/lib/dialog";
 import { RefreshCcw } from "lucide-vue-next";
 
 const config = useConfigStore();

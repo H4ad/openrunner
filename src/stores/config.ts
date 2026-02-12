@@ -1,17 +1,30 @@
 import { defineStore } from "pinia";
-import { ref } from "vue";
-import { listen } from "@tauri-apps/api/event";
+import { ref, toRaw } from "vue";
+import { invoke, listen, type UnlistenFn } from "@/lib/api";
 import type { Group, Project, ProjectType } from "../types";
+
+/**
+ * Deep clone an object to remove Vue proxies and ensure it's serializable.
+ * Uses structuredClone if available, falls back to JSON method.
+ */
+function deepClone<T>(obj: T): T {
+  if (typeof structuredClone === 'function') {
+    return structuredClone(obj);
+  }
+  // Fallback: JSON stringify/parse (faster but loses some types like Date, undefined)
+  return JSON.parse(JSON.stringify(obj));
+}
 
 export const useConfigStore = defineStore("config", () => {
   const groups = ref<Group[]>([]);
   const loading = ref(false);
   let initialized = false;
+  let unlistenConfigReload: UnlistenFn | null = null;
+  let unlistenYamlChanged: UnlistenFn | null = null;
 
   async function loadGroups() {
     loading.value = true;
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
       groups.value = await invoke<Group[]>("get_groups");
     } finally {
       loading.value = false;
@@ -19,21 +32,18 @@ export const useConfigStore = defineStore("config", () => {
   }
 
   async function createGroup(name: string, directory: string, syncEnabled?: boolean): Promise<Group> {
-    const { invoke } = await import("@tauri-apps/api/core");
     const group = await invoke<Group>("create_group", { name, directory, syncEnabled });
     groups.value.push(group);
     return group;
   }
 
   async function renameGroup(groupId: string, name: string) {
-    const { invoke } = await import("@tauri-apps/api/core");
     const updatedGroup = await invoke<Group>("rename_group", { groupId, name });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
   }
 
   async function updateGroupDirectory(groupId: string, directory: string) {
-    const { invoke } = await import("@tauri-apps/api/core");
     const updatedGroup = await invoke<Group>("update_group_directory", { groupId, directory });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
@@ -43,14 +53,12 @@ export const useConfigStore = defineStore("config", () => {
     groupId: string,
     envVars: Record<string, string>,
   ) {
-    const { invoke } = await import("@tauri-apps/api/core");
     const updatedGroup = await invoke<Group>("update_group_env_vars", { groupId, envVars });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
   }
 
   async function deleteGroup(groupId: string) {
-    const { invoke } = await import("@tauri-apps/api/core");
     await invoke("delete_group", { groupId });
     groups.value = groups.value.filter((g) => g.id !== groupId);
   }
@@ -74,7 +82,6 @@ export const useConfigStore = defineStore("config", () => {
       interactive: interactive ?? false,
     };
 
-    const { invoke } = await import("@tauri-apps/api/core");
     const updatedGroup = await invoke<Group>("create_project", { groupId, project });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
@@ -114,22 +121,21 @@ export const useConfigStore = defineStore("config", () => {
     }
     if (updates.interactive !== undefined) project.interactive = updates.interactive;
 
-    // Save to database via Rust command with YAML sync
-    const { invoke } = await import("@tauri-apps/api/core");
-    const updatedGroup = await invoke<Group>("update_project", { groupId, project });
+    // Save to database via command with YAML sync
+    // Use deepClone to remove Vue's reactive proxies - required for Electron IPC serialization
+    const projectToSend = deepClone(toRaw(project));
+    const updatedGroup = await invoke<Group>("update_project", { groupId, project: projectToSend });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
   }
 
   async function deleteProject(groupId: string, projectId: string) {
-    const { invoke } = await import("@tauri-apps/api/core");
     const updatedGroup = await invoke<Group>("delete_project", { groupId, projectId });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
   }
 
   async function deleteMultipleProjects(groupId: string, projectIds: string[]) {
-    const { invoke } = await import("@tauri-apps/api/core");
     const updatedGroup = await invoke<Group>("delete_multiple_projects", { groupId, projectIds });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
@@ -152,28 +158,24 @@ export const useConfigStore = defineStore("config", () => {
       }
     }
 
-    // Save to database via Rust command with YAML sync
-    const { invoke } = await import("@tauri-apps/api/core");
+    // Save to database via command with YAML sync
     const updatedGroup = await invoke<Group>("convert_multiple_projects", { groupId, projectIds, newType });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
   }
 
-  // These functions still use Rust for file operations
+  // These functions use backend for file operations
   async function exportGroup(groupId: string, filePath: string) {
-    const { invoke } = await import("@tauri-apps/api/core");
     await invoke("export_group", { groupId, filePath });
   }
 
   async function importGroup(filePath: string): Promise<Group> {
-    const { invoke } = await import("@tauri-apps/api/core");
     const group = await invoke<Group>("import_group", { filePath });
     groups.value.push(group);
     return group;
   }
 
   async function toggleGroupSync(groupId: string): Promise<Group> {
-    const { invoke } = await import("@tauri-apps/api/core");
     try {
       const updatedGroup: Group = await invoke('toggle_group_sync', { groupId });
       const index = groups.value.findIndex((g: Group) => g.id === groupId);
@@ -188,7 +190,6 @@ export const useConfigStore = defineStore("config", () => {
   }
 
   async function reloadGroupFromYaml(groupId: string) {
-    const { invoke } = await import("@tauri-apps/api/core");
     try {
       const updatedGroup = await invoke<Group>("reload_group_from_yaml", { groupId });
       const index = groups.value.findIndex((g: Group) => g.id === groupId);
@@ -208,14 +209,20 @@ export const useConfigStore = defineStore("config", () => {
 
     await loadGroups();
 
-    listen<{ groups: Group[] }>("config-reloaded", (event) => {
-      groups.value = event.payload.groups;
+    unlistenConfigReload = await listen<{ groups: Group[] }>("config-reloaded", (payload) => {
+      groups.value = payload.groups;
     });
 
-    listen<{ groupId: string; filePath: string }>("yaml-file-changed", (event) => {
-      console.log("YAML file changed, reloading group:", event.payload.groupId);
-      reloadGroupFromYaml(event.payload.groupId);
+    unlistenYamlChanged = await listen<{ groupId: string; filePath: string }>("yaml-file-changed", (payload) => {
+      console.log("YAML file changed, reloading group:", payload.groupId);
+      reloadGroupFromYaml(payload.groupId);
     });
+  }
+
+  function cleanup() {
+    unlistenConfigReload?.();
+    unlistenYamlChanged?.();
+    initialized = false;
   }
 
   return {
@@ -237,5 +244,6 @@ export const useConfigStore = defineStore("config", () => {
     toggleGroupSync,
     reloadGroupFromYaml,
     init,
+    cleanup,
   };
 });

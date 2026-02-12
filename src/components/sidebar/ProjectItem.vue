@@ -31,16 +31,19 @@ const isActive = computed(
     ui.selectedProjectId === props.project.id,
 );
 
-const status = computed(() => process.statuses.get(props.project.id)?.status ?? "stopped");
+const projectStatus = computed(() => {
+  const info = process.statuses.get(props.project.id);
+  return {
+    status: info?.status ?? "stopped",
+    cpuUsage: info?.cpuUsage ?? 0,
+    memoryUsage: info?.memoryUsage ?? 0,
+  };
+});
 
-const isRunning = computed(() => status.value === "running");
-
-const cpuUsage = computed(() => process.statuses.get(props.project.id)?.cpuUsage ?? 0);
-
-const memoryUsage = computed(() => process.statuses.get(props.project.id)?.memoryUsage ?? 0);
-
-const formattedCpu = computed(() => formatCpu(cpuUsage.value));
-const formattedMemory = computed(() => formatBytes(memoryUsage.value));
+const status = computed(() => projectStatus.value.status);
+const isRunning = computed(() => projectStatus.value.status === "running");
+const formattedCpu = computed(() => formatCpu(projectStatus.value.cpuUsage));
+const formattedMemory = computed(() => formatBytes(projectStatus.value.memoryUsage));
 
 const projectIndex = computed(() => {
   const group = config.groups.find((g) => g.id === props.groupId);
