@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.4](https://github.com/H4ad/openrunner/compare/v0.2.3...v0.2.4) (2026-02-12)
+
+
+### Bug Fixes
+
+* **shell:** little bug that causes commands to not be found ([1661bf2](https://github.com/H4ad/openrunner/commit/1661bf2e19843e4e2851a5362b1879ba93ace466))
+
 ## [0.2.3](https://github.com/H4ad/openrunner/compare/v0.2.2...v0.2.3) (2026-02-12)
 
 
