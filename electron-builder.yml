@@ -37,3 +37,15 @@ linux:
     - deb
   category: Development
   artifactName: "${productName}-${version}-${arch}.${ext}"
+  icon: build/icon.png
+  # Desktop file name and executable must match app.name for taskbar icon association on GNOME/KDE
+  executableName: openrunner
+  # Override the generated desktop file settings for proper WM_CLASS matching
+  desktop:
+    entry:
+      StartupWMClass: openrunner
+
+# Include build resources in the packaged app
+extraResources:
+  - from: build/icon.png
+    to: build/icon.png
