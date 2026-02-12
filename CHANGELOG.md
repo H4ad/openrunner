@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.2.5](https://github.com/H4ad/openrunner/compare/v0.2.4...v0.2.5) (2026-02-12)
+
+
+### Features
+
+* **auto-update:** add preview button to ensure everything is working fine when render the update ([4baa8b9](https://github.com/H4ad/openrunner/commit/4baa8b99dbbfa95174695d04353eee4a79e9baeb))
+* **logs:** add ctrl+c support ([e2cd9b8](https://github.com/H4ad/openrunner/commit/e2cd9b86486774e79ab6d2c9f5c134c9875b8ab2))
+
+
+### Bug Fixes
+
+* **shell:** error messages when start via zsh/bash due to missing envs ([80be07d](https://github.com/H4ad/openrunner/commit/80be07d0c2404a6bceaa0a3f30d32bd3e6acd529))
+* **sonner:** wrong text colors ([d3b141b](https://github.com/H4ad/openrunner/commit/d3b141bf181f37bb2db8f66301feaaff27f6ed52))
+
 ## [0.2.4](https://github.com/H4ad/openrunner/compare/v0.2.3...v0.2.4) (2026-02-12)
 
 
