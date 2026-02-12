@@ -53,15 +53,16 @@ export function registerProcessHandlers(): void {
       const state = getState();
       const { groupId, projectId, cols, rows } = args;
 
-      // Find the group and project
+      // Find the group
       const group = state.findGroup(groupId);
       if (!group) {
         throw new Error(`Group not found: ${groupId}`);
       }
 
-      const project = group.projects.find((p) => p.id === projectId);
+      // Get project from database to ensure we have the latest values
+      const project = state.database.getProject(projectId);
       if (!project) {
-        throw new Error(`Project not found: ${projectId}`);
+        throw new Error(`Project ${projectId} not found in database.`);
       }
 
       // Resolve working directory
@@ -108,20 +109,23 @@ export function registerProcessHandlers(): void {
       args: {
         groupId: string;
         projectId: string;
+        cols?: number;
+        rows?: number;
       }
     ): Promise<void> => {
       const state = getState();
-      const { groupId, projectId } = args;
+      const { groupId, projectId, cols, rows } = args;
 
-      // Find the group and project
+      // Find the group
       const group = state.findGroup(groupId);
       if (!group) {
         throw new Error(`Group not found: ${groupId}`);
       }
 
-      const project = group.projects.find((p) => p.id === projectId);
+      // Get project from database to ensure we have the latest values
+      const project = state.database.getProject(projectId);
       if (!project) {
-        throw new Error(`Project not found: ${projectId}`);
+        throw new Error(`Project ${projectId} not found in database.`);
       }
 
       // Stop the process if running
@@ -147,7 +151,9 @@ export function registerProcessHandlers(): void {
         envVars,
         project.autoRestart,
         project.projectType,
-        project.interactive
+        project.interactive,
+        cols,
+        rows
       );
     }
   );
