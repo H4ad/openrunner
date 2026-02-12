@@ -13,6 +13,7 @@ This document tracks the features implemented in Runner UI.
 - **Session History**: Track all process executions with logs and metrics
 - **Search**: Log search with Ctrl+F navigation
 - **File Links**: Click file paths in logs to open in editor
+- **Copy Text**: Select text in terminal and copy with Ctrl+C/Cmd+C
 - **Group Export/Import**: Export groups to JSON files and import them to share configurations
 - **YAML Auto-Sync**: Groups with sync enabled automatically write changes to `openrunner.yaml` file
 - **Rust-Only Data Access**: Frontend reads and writes are routed through Rust commands, avoiding direct SQLite access from the UI

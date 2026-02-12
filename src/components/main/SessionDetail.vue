@@ -271,11 +271,24 @@ async function setupTerminal() {
 
   terminal.open(terminalRef.value);
 
-  // Prevent terminal from capturing Ctrl+F
+  // Custom key handler for copy and search
   terminal.attachCustomKeyEventHandler((e) => {
+    // Ctrl+F / Cmd+F for search - let the window handler take it
     if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-      return false; // Let the window handler take it
+      return false;
     }
+    
+    // Ctrl+C / Cmd+C - copy selection to clipboard if text is selected
+    if ((e.ctrlKey || e.metaKey) && e.key === "c" && e.type === "keydown") {
+      if (terminal?.hasSelection()) {
+        const selection = terminal.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+        }
+      }
+      return false; // Session detail is read-only, always prevent default
+    }
+    
     return true;
   });
 
