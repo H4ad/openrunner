@@ -2,12 +2,15 @@
  * CLI Installer Service
  * 
  * Handles installation and uninstallation of the CLI command.
- * - macOS/Linux: Creates symlink at /usr/local/bin/openrunner
+ * - macOS/Linux: Creates wrapper script at /usr/local/bin/openrunner
  * - Windows: Creates batch file in user's AppData Scripts folder and adds to PATH
+ * 
+ * For AppImage distributions, CLI files are copied to a persistent location
+ * (~/.local/share/openrunner/cli/) since AppImages mount to temporary paths.
  */
 
 import { app } from 'electron';
-import { existsSync, unlinkSync, symlinkSync, writeFileSync, readFileSync, mkdirSync } from 'fs';
+import { existsSync, unlinkSync, writeFileSync, mkdirSync, copyFileSync, rmSync } from 'fs';
 import { join, dirname } from 'path';
 import { execSync, spawn } from 'child_process';
 import { is } from '@electron-toolkit/utils';
@@ -18,6 +21,26 @@ export interface CliInstallResult {
   installed: boolean;
   path?: string;
   requiresSudo?: boolean;
+}
+
+/**
+ * Check if running as an AppImage (Linux)
+ */
+function isAppImage(): boolean {
+  return !!process.env.APPIMAGE;
+}
+
+/**
+ * Get the persistent CLI directory for storing CLI files
+ * Used for AppImage and potentially other portable distributions
+ */
+function getPersistentCliDir(): string {
+  if (process.platform === 'win32') {
+    const appData = app.getPath('userData');
+    return join(dirname(appData), 'OpenRunner', 'cli');
+  }
+  // Linux/macOS: ~/.local/share/openrunner/cli
+  return join(app.getPath('home'), '.local', 'share', 'openrunner', 'cli');
 }
 
 /**
@@ -36,6 +59,17 @@ function getCliSourcePath(): string {
 }
 
 /**
+ * Get the path to the chunks directory inside the app bundle
+ */
+function getChunksSourcePath(): string {
+  if (is.dev) {
+    return join(__dirname, 'chunks');
+  }
+  const resourcesPath = process.resourcesPath;
+  return join(resourcesPath, 'app.asar.unpacked', 'out', 'main', 'chunks');
+}
+
+/**
  * Get the target installation path for the CLI symlink/script
  */
 function getCliTargetPath(): string {
@@ -48,6 +82,54 @@ function getCliTargetPath(): string {
   
   // Unix: /usr/local/bin/openrunner
   return '/usr/local/bin/openrunner';
+}
+
+/**
+ * Copy CLI files to persistent location (for AppImage)
+ * Returns the path to the copied cli.js
+ */
+function copyCliToPersistentLocation(): string {
+  const persistentDir = getPersistentCliDir();
+  const chunksDir = join(persistentDir, 'chunks');
+  
+  // Create directories
+  if (!existsSync(persistentDir)) {
+    mkdirSync(persistentDir, { recursive: true });
+  }
+  if (!existsSync(chunksDir)) {
+    mkdirSync(chunksDir, { recursive: true });
+  }
+
+  // Copy cli.js
+  const sourceCli = getCliSourcePath();
+  const targetCli = join(persistentDir, 'cli.js');
+  copyFileSync(sourceCli, targetCli);
+
+  // Copy chunks directory contents
+  const sourceChunks = getChunksSourcePath();
+  if (existsSync(sourceChunks)) {
+    const { readdirSync } = require('fs');
+    const files = readdirSync(sourceChunks);
+    for (const file of files) {
+      copyFileSync(join(sourceChunks, file), join(chunksDir, file));
+    }
+  }
+
+  return targetCli;
+}
+
+/**
+ * Remove CLI files from persistent location
+ */
+function removePersistentCliFiles(): void {
+  const persistentDir = getPersistentCliDir();
+  if (existsSync(persistentDir)) {
+    try {
+      rmSync(persistentDir, { recursive: true, force: true });
+    } catch {
+      // Ignore errors
+    }
+  }
 }
 
 /**
@@ -89,10 +171,24 @@ export async function installCli(): Promise<CliInstallResult> {
     };
   }
 
+  // For AppImage or dev mode with temporary paths, copy CLI to persistent location
+  let cliPath = sourcePath;
+  if (isAppImage() || is.dev) {
+    try {
+      cliPath = copyCliToPersistentLocation();
+    } catch (error) {
+      return {
+        success: false,
+        message: `Failed to copy CLI files: ${error instanceof Error ? error.message : String(error)}`,
+        installed: false,
+      };
+    }
+  }
+
   if (process.platform === 'win32') {
-    return installCliWindows(sourcePath, targetPath);
+    return installCliWindows(cliPath, targetPath);
   } else {
-    return installCliUnix(sourcePath, targetPath);
+    return installCliUnix(cliPath, targetPath);
   }
 }
 
@@ -100,39 +196,27 @@ export async function installCli(): Promise<CliInstallResult> {
  * Install CLI on Unix (macOS/Linux)
  */
 async function installCliUnix(sourcePath: string, targetPath: string): Promise<CliInstallResult> {
-  const targetDir = dirname(targetPath);
-
-  // Check if we can write to target directory
-  try {
-    // Create a wrapper script that invokes node with the CLI
-    const wrapperScript = `#!/bin/sh
+  // Create a wrapper script that invokes node with the CLI
+  const wrapperScript = `#!/bin/sh
 exec node "${sourcePath}" "$@"
 `;
-    
-    // Try direct creation first (will work if user has permissions)
-    try {
-      if (existsSync(targetPath)) {
-        unlinkSync(targetPath);
-      }
-      writeFileSync(targetPath, wrapperScript, { mode: 0o755 });
-      
-      return {
-        success: true,
-        message: `CLI installed successfully at ${targetPath}`,
-        installed: true,
-        path: targetPath,
-      };
-    } catch (directError) {
-      // Need elevated permissions - try with pkexec/sudo
-      return installCliUnixElevated(sourcePath, targetPath, wrapperScript);
+  
+  // Try direct creation first (will work if user has permissions)
+  try {
+    if (existsSync(targetPath)) {
+      unlinkSync(targetPath);
     }
-  } catch (error) {
+    writeFileSync(targetPath, wrapperScript, { mode: 0o755 });
+    
     return {
-      success: false,
-      message: `Failed to install CLI: ${error instanceof Error ? error.message : String(error)}`,
-      installed: false,
-      requiresSudo: true,
+      success: true,
+      message: `CLI installed successfully at ${targetPath}`,
+      installed: true,
+      path: targetPath,
     };
+  } catch {
+    // Need elevated permissions - try with pkexec/sudo
+    return installCliUnixElevated(sourcePath, targetPath, wrapperScript);
   }
 }
 
@@ -343,6 +427,9 @@ node "${sourcePath}" %*
 export async function uninstallCli(): Promise<CliInstallResult> {
   const targetPath = getCliTargetPath();
 
+  // Also clean up persistent CLI files
+  removePersistentCliFiles();
+
   if (!existsSync(targetPath)) {
     return {
       success: true,
@@ -362,25 +449,17 @@ export async function uninstallCli(): Promise<CliInstallResult> {
  * Uninstall CLI on Unix
  */
 async function uninstallCliUnix(targetPath: string): Promise<CliInstallResult> {
+  // Try direct removal first
   try {
-    // Try direct removal first
-    try {
-      unlinkSync(targetPath);
-      return {
-        success: true,
-        message: 'CLI uninstalled successfully',
-        installed: false,
-      };
-    } catch {
-      // Need elevated permissions
-      return uninstallCliUnixElevated(targetPath);
-    }
-  } catch (error) {
+    unlinkSync(targetPath);
     return {
-      success: false,
-      message: `Failed to uninstall CLI: ${error instanceof Error ? error.message : String(error)}`,
-      installed: true,
+      success: true,
+      message: 'CLI uninstalled successfully',
+      installed: false,
     };
+  } catch {
+    // Need elevated permissions
+    return uninstallCliUnixElevated(targetPath);
   }
 }
 

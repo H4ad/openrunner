@@ -4,6 +4,17 @@ directories:
   output: dist
   buildResources: build
 
+# Files to include in the app
+files:
+  - out/**/*
+
+# Unpack these from asar for native module and CLI access
+asarUnpack:
+  - node_modules/better-sqlite3/**
+  - node_modules/node-pty/**
+  - out/main/cli.js
+  - out/main/chunks/**
+
 # GitHub Releases for auto-updates
 publish:
   provider: github
