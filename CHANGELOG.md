@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.3](https://github.com/H4ad/openrunner/compare/v0.2.2...v0.2.3) (2026-02-12)
+
+
+### Features
+
+* **shell:** add support to auto-detect shell ([bb2da86](https://github.com/H4ad/openrunner/commit/bb2da8603e1a2c704f5ac0fa436b6a6c92c8d5eb))
+
 ## [0.2.2](https://github.com/H4ad/openrunner/compare/v0.2.1...v0.2.2) (2026-02-12)
 
 
