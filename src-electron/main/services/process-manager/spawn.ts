@@ -32,12 +32,13 @@ export async function spawnRegularProcess(
   const settings = state.database.getSettings();
   const { shell, args } = platform.getShellCommand(settings.shell);
 
-  // Prepare environment with color forcing
+  // Prepare environment with color forcing and TERM (required for interactive shells)
   const env = {
     ...process.env,
     ...envVars,
     FORCE_COLOR: '1',
     CLICOLOR_FORCE: '1',
+    TERM: 'xterm-256color',
   };
 
   // Get platform-specific spawn options
