@@ -66,20 +66,22 @@ function getShellWithArgs(shell: string): { shell: string; args: string[] } {
     return { shell, args: ['-Command'] };
   }
   
-  // Unix shells - use login shell (-l) to load profile/rc files
+  // Unix shells - use interactive login shell (-i -l) to load rc files
+  // -l (login) loads profile files (~/.zprofile, ~/.profile)
+  // -i (interactive) loads rc files (~/.zshrc, ~/.bashrc) where nvm/fnm are typically configured
   if (shellName.includes('bash')) {
-    return { shell, args: ['-l', '-c'] };
+    return { shell, args: ['-i', '-l', '-c'] };
   }
   
   if (shellName.includes('zsh')) {
-    return { shell, args: ['-l', '-c'] };
+    return { shell, args: ['-i', '-l', '-c'] };
   }
   
   if (shellName.includes('fish')) {
-    return { shell, args: ['-l', '-c'] };
+    return { shell, args: ['-i', '-l', '-c'] };
   }
   
-  // Default for other shells (sh, dash, etc.)
+  // Default for other shells (sh, dash, etc.) - these don't support -i well
   return { shell, args: ['-l', '-c'] };
 }
 
