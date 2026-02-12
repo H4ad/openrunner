@@ -1,6 +1,6 @@
 {
   "name": "openrunner",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "OpenRunner - Desktop process manager for local development",
   "type": "module",
   "main": "./out/main/index.js",

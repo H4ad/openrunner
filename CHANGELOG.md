@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.0](https://github.com/H4ad/openrunner/compare/v0.0.2...v0.1.0) (2026-02-12)
+
+
+### Features
+
+* **electron:** migrate app from tauri to electron ([411b22d](https://github.com/H4ad/openrunner/commit/411b22debc007fa23973de91f0d5a974159be2dd))
+
 ## [0.0.2](https://github.com/H4ad/openrunner/compare/v0.0.1...v0.0.2) (2026-02-12)
 
 
