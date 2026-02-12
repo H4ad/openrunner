@@ -29,7 +29,8 @@ export async function spawnRegularProcess(
 ): Promise<void> {
   const state = getState();
   const platform = getPlatformManager();
-  const { shell, args } = platform.getShellCommand();
+  const settings = state.database.getSettings();
+  const { shell, args } = platform.getShellCommand(settings.shell);
 
   // Prepare environment with color forcing
   const env = {
@@ -163,7 +164,8 @@ export async function spawnInteractiveProcess(
 ): Promise<void> {
   const state = getState();
   const platform = getPlatformManager();
-  const { shell, args } = platform.getShellCommand();
+  const settings = state.database.getSettings();
+  const { shell, args } = platform.getShellCommand(settings.shell);
 
   // Prepare environment with color forcing
   const env = {

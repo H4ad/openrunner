@@ -39,11 +39,14 @@ const updates = useUpdatesStore();
 const maxLogLines = ref(settings.maxLogLines);
 const editorValue = ref(settings.editor ?? "");
 const fullscreen = ref(settings.fullscreen ?? false);
+const shellValue = ref(settings.shell ?? "");
 const detectedEditor = ref("");
+const detectedShell = ref("");
 const storageStats = ref<StorageStats | null>(null);
 const cleanupDays = ref(30);
 const showClearAllDialog = ref(false);
 const savingEditor = ref(false);
+const savingShell = ref(false);
 const loadingStorage = ref(false);
 
 const formattedSize = computed(() => {
@@ -59,6 +62,11 @@ const formattedSize = computed(() => {
 const editorChanged = computed(() => {
   const current = settings.editor ?? "";
   return editorValue.value !== current;
+});
+
+const shellChanged = computed(() => {
+  const current = settings.shell ?? "";
+  return shellValue.value !== current;
 });
 
 async function loadStorageStats() {
@@ -80,6 +88,14 @@ async function detectEditor() {
   }
 }
 
+async function detectShell() {
+  try {
+    detectedShell.value = await settings.detectSystemShell();
+  } catch {
+    detectedShell.value = "";
+  }
+}
+
 async function saveEditor() {
   savingEditor.value = true;
   try {
@@ -89,8 +105,21 @@ async function saveEditor() {
   }
 }
 
+async function saveShell() {
+  savingShell.value = true;
+  try {
+    await settings.updateShell(shellValue.value);
+  } finally {
+    savingShell.value = false;
+  }
+}
+
 function useDetectedEditor() {
   editorValue.value = detectedEditor.value;
+}
+
+function useDetectedShell() {
+  shellValue.value = detectedShell.value;
 }
 
 async function cleanupOldData() {
@@ -131,8 +160,10 @@ watch(
       maxLogLines.value = settings.maxLogLines;
       editorValue.value = settings.editor ?? "";
       fullscreen.value = settings.fullscreen ?? false;
+      shellValue.value = settings.shell ?? "";
       loadStorageStats();
       detectEditor();
+      detectShell();
     }
   },
 );
@@ -221,6 +252,48 @@ watch(
                     size="sm"
                     class="text-xs h-auto p-0"
                     @click="useDetectedEditor"
+                  >
+                    Use this
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <!-- Shell Settings -->
+        <section>
+          <h3 class="text-sm font-semibold text-foreground mb-3">Shell</h3>
+          <Card>
+            <CardContent class="px-4 py-4 space-y-4">
+              <div class="space-y-2">
+                <Label for="default-shell">Default Shell</Label>
+                <div class="flex items-center gap-3">
+                  <Input
+                    id="default-shell"
+                    v-model="shellValue"
+                    placeholder="e.g., /bin/bash, /bin/zsh, cmd.exe"
+                    class="flex-1"
+                  />
+                  <Button
+                    :disabled="savingShell || !shellChanged"
+                    @click="saveShell"
+                  >
+                    {{ savingShell ? "Saving..." : "Save" }}
+                  </Button>
+                </div>
+                <p class="text-xs text-muted-foreground">
+                  Shell to use when running project commands. Leave empty to auto-detect from environment.
+                </p>
+                <div v-if="detectedShell" class="flex items-center gap-2">
+                  <span class="text-xs text-muted-foreground">Detected:</span>
+                  <code class="text-xs px-1.5 py-0.5 bg-muted rounded text-green-400">{{ detectedShell }}</code>
+                  <Button
+                    v-if="shellValue !== detectedShell"
+                    variant="link"
+                    size="sm"
+                    class="text-xs h-auto p-0"
+                    @click="useDetectedShell"
                   >
                     Use this
                   </Button>

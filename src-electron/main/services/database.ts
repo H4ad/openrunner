@@ -731,11 +731,13 @@ export class Database {
     const maxLogLines = this.getSetting('max_log_lines', '10000');
     const editor = this.getSetting('editor', '');
     const fullscreen = this.getSetting('fullscreen', '');
+    const shell = this.getSetting('shell', '');
 
     return {
       maxLogLines: parseInt(maxLogLines, 10) || 10000,
       editor: editor || null,
       fullscreen: fullscreen === '' ? null : fullscreen === 'true',
+      shell: shell || null,
     };
   }
 
@@ -749,6 +751,7 @@ export class Database {
       'fullscreen',
       settings.fullscreen === null ? '' : settings.fullscreen.toString()
     );
+    this.setSetting('shell', settings.shell ?? '');
   }
 
   private getSetting(key: string, defaultValue: string): string {

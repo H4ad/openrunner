@@ -28,7 +28,59 @@ export interface PlatformProcessManager {
   isProcessRunning(pid: number): boolean;
 
   /** Get the shell command for the platform */
-  getShellCommand(): { shell: string; args: string[] };
+  getShellCommand(customShell?: string | null): { shell: string; args: string[] };
+}
+
+/**
+ * Detect the user's default shell from environment
+ */
+export function detectUserShell(): string {
+  // Try to get shell from environment variables
+  const shell = process.env.SHELL || process.env.ComSpec;
+  
+  if (shell) {
+    return shell;
+  }
+  
+  // Fallback to platform defaults
+  if (process.platform === 'win32') {
+    return 'cmd.exe';
+  }
+  
+  // For Unix-like systems, try common shells
+  return 'sh';
+}
+
+/**
+ * Get shell command with args based on shell type
+ */
+function getShellWithArgs(shell: string): { shell: string; args: string[] } {
+  const shellName = shell.toLowerCase();
+  
+  // Windows shells
+  if (shellName.includes('cmd.exe') || shellName.includes('cmd')) {
+    return { shell, args: ['/C'] };
+  }
+  
+  if (shellName.includes('powershell') || shellName.includes('pwsh')) {
+    return { shell, args: ['-Command'] };
+  }
+  
+  // Unix shells - use login shell (-l) to load profile/rc files
+  if (shellName.includes('bash')) {
+    return { shell, args: ['-l', '-c'] };
+  }
+  
+  if (shellName.includes('zsh')) {
+    return { shell, args: ['-l', '-c'] };
+  }
+  
+  if (shellName.includes('fish')) {
+    return { shell, args: ['-l', '-c'] };
+  }
+  
+  // Default for other shells (sh, dash, etc.)
+  return { shell, args: ['-l', '-c'] };
 }
 
 /**
@@ -87,8 +139,10 @@ class UnixProcessManager implements PlatformProcessManager {
     }
   }
 
-  getShellCommand(): { shell: string; args: string[] } {
-    return { shell: 'sh', args: ['-c'] };
+  getShellCommand(customShell?: string | null): { shell: string; args: string[] } {
+    // Use custom shell if provided, otherwise detect user's shell
+    const shell = customShell && customShell.trim() ? customShell : detectUserShell();
+    return getShellWithArgs(shell);
   }
 }
 
@@ -155,8 +209,10 @@ class WindowsProcessManager implements PlatformProcessManager {
     }
   }
 
-  getShellCommand(): { shell: string; args: string[] } {
-    return { shell: 'cmd.exe', args: ['/C'] };
+  getShellCommand(customShell?: string | null): { shell: string; args: string[] } {
+    // Use custom shell if provided, otherwise detect user's shell
+    const shell = customShell && customShell.trim() ? customShell : detectUserShell();
+    return getShellWithArgs(shell);
   }
 }
 
@@ -182,3 +238,5 @@ function createPlatformManager(): PlatformProcessManager {
   }
   return new UnixProcessManager();
 }
+
+

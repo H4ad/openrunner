@@ -7,6 +7,7 @@ import { ipcMain } from 'electron';
 import { execSync } from 'child_process';
 import { IPC_CHANNELS } from '../../shared/events';
 import { getState } from '../services/state';
+import { detectUserShell } from '../platform';
 import type { AppSettings } from '../../shared/types';
 
 /** List of common editors to check for */
@@ -90,6 +91,14 @@ export function registerSettingsHandlers(): void {
     IPC_CHANNELS.DETECT_SYSTEM_EDITOR,
     async (): Promise<string | null> => {
       return detectEditor();
+    }
+  );
+
+  // Detect system shell
+  ipcMain.handle(
+    IPC_CHANNELS.DETECT_SYSTEM_SHELL,
+    async (): Promise<string> => {
+      return detectUserShell();
     }
   );
 }
