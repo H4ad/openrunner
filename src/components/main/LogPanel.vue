@@ -220,11 +220,30 @@ async function setupTerminal() {
     });
   }
 
-  // Prevent terminal from capturing Ctrl+F
+  // Custom key handler for copy and search
   terminal.attachCustomKeyEventHandler((e) => {
+    // Ctrl+F / Cmd+F for search - let the window handler take it
     if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-      return false; // Let the window handler take it
+      return false;
     }
+    
+    // Ctrl+C / Cmd+C - copy selection to clipboard if text is selected
+    // In PTY mode, we only copy if there's a selection, otherwise let Ctrl+C send SIGINT
+    if ((e.ctrlKey || e.metaKey) && e.key === "c" && e.type === "keydown") {
+      if (terminal?.hasSelection()) {
+        const selection = terminal.getSelection();
+        if (selection) {
+          navigator.clipboard.writeText(selection);
+          return false; // Prevent default behavior
+        }
+      }
+      // No selection - in non-interactive mode, still copy nothing but don't send to process
+      // In interactive mode, let it pass through to send SIGINT
+      if (!props.interactive) {
+        return false;
+      }
+    }
+    
     return true;
   });
 
