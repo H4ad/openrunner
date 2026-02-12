@@ -45,6 +45,7 @@ export interface AppSettings {
   maxLogLines: number;
   editor: string | null;
   fullscreen: boolean | null;
+  shell: string | null;
 }
 
 export interface Session {

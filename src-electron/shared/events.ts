@@ -75,6 +75,7 @@ export const IPC_CHANNELS = {
   GET_SETTINGS: 'get-settings',
   UPDATE_SETTINGS: 'update-settings',
   DETECT_SYSTEM_EDITOR: 'detect-system-editor',
+  DETECT_SYSTEM_SHELL: 'detect-system-shell',
 
   // Storage commands
   GET_STORAGE_STATS: 'get-storage-stats',

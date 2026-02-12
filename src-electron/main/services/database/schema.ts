@@ -91,6 +91,7 @@ export function initSchema(db: Database): void {
     INSERT OR IGNORE INTO settings (key, value) VALUES ('max_log_lines', '10000');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('editor', '');
     INSERT OR IGNORE INTO settings (key, value) VALUES ('fullscreen', 'false');
+    INSERT OR IGNORE INTO settings (key, value) VALUES ('shell', '');
 
     -- Indexes for better query performance
     CREATE INDEX IF NOT EXISTS idx_projects_group ON projects(group_id);

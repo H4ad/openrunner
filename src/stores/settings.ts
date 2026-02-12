@@ -7,12 +7,14 @@ export const useSettingsStore = defineStore("settings", () => {
   const maxLogLines = ref(10_000);
   const editor = ref<string | null>(null);
   const fullscreen = ref<boolean | null>(null);
+  const shell = ref<string | null>(null);
 
   async function load() {
     const settings = await invoke<AppSettings>("get_settings");
     maxLogLines.value = settings.maxLogLines;
     editor.value = settings.editor;
     fullscreen.value = settings.fullscreen;
+    shell.value = settings.shell;
   }
 
   async function updateMaxLogLines(value: number) {
@@ -20,6 +22,7 @@ export const useSettingsStore = defineStore("settings", () => {
       maxLogLines: value,
       editor: editor.value,
       fullscreen: fullscreen.value,
+      shell: shell.value,
     };
     await invoke("update_settings", { settings });
     maxLogLines.value = value;
@@ -30,6 +33,7 @@ export const useSettingsStore = defineStore("settings", () => {
       maxLogLines: maxLogLines.value,
       editor: value,
       fullscreen: fullscreen.value,
+      shell: shell.value,
     };
     await invoke("update_settings", { settings });
     editor.value = value;
@@ -40,9 +44,21 @@ export const useSettingsStore = defineStore("settings", () => {
       maxLogLines: maxLogLines.value,
       editor: editor.value,
       fullscreen: value,
+      shell: shell.value,
     };
     await invoke("update_settings", { settings });
     fullscreen.value = value;
+  }
+
+  async function updateShell(value: string) {
+    const settings: AppSettings = {
+      maxLogLines: maxLogLines.value,
+      editor: editor.value,
+      fullscreen: fullscreen.value,
+      shell: value,
+    };
+    await invoke("update_settings", { settings });
+    shell.value = value;
   }
 
   async function toggleFullscreen() {
@@ -54,15 +70,22 @@ export const useSettingsStore = defineStore("settings", () => {
     return await invoke<string>("detect_system_editor");
   }
 
+  async function detectSystemShell(): Promise<string> {
+    return await invoke<string>("detect_system_shell");
+  }
+
   return {
     maxLogLines,
     editor,
     fullscreen,
+    shell,
     load,
     updateMaxLogLines,
     updateEditor,
     updateFullscreen,
+    updateShell,
     toggleFullscreen,
     detectSystemEditor,
+    detectSystemShell,
   };
 });
