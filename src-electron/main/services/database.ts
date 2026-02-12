@@ -6,6 +6,7 @@
 import BetterSqlite3 from 'better-sqlite3';
 import type { Database as BetterSqlite3Database } from 'better-sqlite3';
 import { initSchema } from './database/schema';
+import { runMigrations } from './database/migrations';
 import type {
   Group,
   Project,
@@ -39,6 +40,9 @@ export class Database {
 
     // Initialize schema
     initSchema(this.db);
+
+    // Run migrations for schema updates
+    runMigrations(this.db);
   }
 
   /**
@@ -253,6 +257,7 @@ export class Database {
         cwd: row.cwd,
         projectType: row.project_type as 'task' | 'service',
         interactive: row.interactive === 1,
+        watchPatterns: row.watch_patterns ? JSON.parse(row.watch_patterns) : undefined,
       };
     });
   }
@@ -297,8 +302,8 @@ export class Database {
   private insertProject(groupId: string, project: Project): void {
     this.db
       .prepare(
-        `INSERT INTO projects (id, group_id, name, command, auto_restart, cwd, project_type, interactive)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO projects (id, group_id, name, command, auto_restart, cwd, project_type, interactive, watch_patterns)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         project.id,
@@ -308,7 +313,8 @@ export class Database {
         project.autoRestart ? 1 : 0,
         project.cwd,
         project.projectType,
-        project.interactive ? 1 : 0
+        project.interactive ? 1 : 0,
+        project.watchPatterns ? JSON.stringify(project.watchPatterns) : null
       );
 
     // Insert project env vars
@@ -352,6 +358,7 @@ export class Database {
       cwd: row.cwd,
       projectType: row.project_type as 'task' | 'service',
       interactive: row.interactive === 1,
+      watchPatterns: row.watch_patterns ? JSON.parse(row.watch_patterns) : undefined,
       groupId: row.group_id,
     };
   }
@@ -364,7 +371,7 @@ export class Database {
       // Update project fields
       this.db
         .prepare(
-          `UPDATE projects SET name = ?, command = ?, auto_restart = ?, cwd = ?, project_type = ?, interactive = ?
+          `UPDATE projects SET name = ?, command = ?, auto_restart = ?, cwd = ?, project_type = ?, interactive = ?, watch_patterns = ?
            WHERE id = ?`
         )
         .run(
@@ -374,6 +381,7 @@ export class Database {
           project.cwd,
           project.projectType,
           project.interactive ? 1 : 0,
+          project.watchPatterns ? JSON.stringify(project.watchPatterns) : null,
           project.id
         );
 

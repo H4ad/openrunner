@@ -21,6 +21,7 @@ export interface Project {
   cwd: string | null;
   projectType: ProjectType;
   interactive: boolean;
+  watchPatterns?: string[];
 }
 
 export interface Group {
@@ -169,6 +170,7 @@ export interface YamlProject {
   type?: 'task' | 'service';
   interactive?: boolean;
   env?: Record<string, string>;
+  watchPatterns?: string[];
 }
 
 export interface YamlConfig {
@@ -198,6 +200,7 @@ export interface ProjectRow {
   cwd: string | null;
   project_type: string;
   interactive: number;
+  watch_patterns: string | null;
 }
 
 export interface EnvVarRow {

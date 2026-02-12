@@ -8,6 +8,7 @@ import type { ProcessStatus, ProjectType } from '../../../shared/types';
 import { getState } from '../state';
 import { getPlatformManager } from '../../platform';
 import { emitStatusUpdate, spawnProcess } from './index';
+import { stopFileWatcher } from '../file-watcher';
 
 /**
  * Watch for process exit and handle auto-restart
@@ -72,6 +73,9 @@ export function watchExit(
 
     // Process has exited
     clearInterval(checkInterval);
+
+    // Stop file watcher when process exits
+    stopFileWatcher(projectId);
 
     const manuallyStopped = managed.manuallyStopped;
     const sessionId = managed.sessionId;

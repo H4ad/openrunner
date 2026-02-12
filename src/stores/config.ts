@@ -68,18 +68,22 @@ export const useConfigStore = defineStore("config", () => {
     name: string,
     command: string,
     cwd?: string,
+    envVars?: Record<string, string>,
     projectType?: ProjectType,
     interactive?: boolean,
+    autoRestart?: boolean,
+    watchPatterns?: string[],
   ): Promise<Project> {
     const project: Project = {
       id: crypto.randomUUID(),
       name,
       command,
-      autoRestart: (projectType || "service") === "service",
-      envVars: {},
+      autoRestart: autoRestart ?? (projectType || "service") === "service",
+      envVars: envVars ?? {},
       cwd: cwd || null,
       projectType: projectType || "service",
       interactive: interactive ?? false,
+      watchPatterns,
     };
 
     const updatedGroup = await invoke<Group>("create_project", { groupId, project });
@@ -99,6 +103,7 @@ export const useConfigStore = defineStore("config", () => {
       cwd?: string | null;
       projectType?: ProjectType;
       interactive?: boolean;
+      watchPatterns?: string[];
     },
   ) {
     const group = groups.value.find((g) => g.id === groupId);
@@ -120,6 +125,7 @@ export const useConfigStore = defineStore("config", () => {
       }
     }
     if (updates.interactive !== undefined) project.interactive = updates.interactive;
+    if ('watchPatterns' in updates) project.watchPatterns = updates.watchPatterns;
 
     // Save to database via command with YAML sync
     // Use deepClone to remove Vue's reactive proxies - required for Electron IPC serialization

@@ -17,6 +17,15 @@ import ConfirmDialog from "../shared/ConfirmDialog.vue";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import {
   ActivityLogIcon,
   ClockIcon,
@@ -42,6 +51,8 @@ const sessionsStore = useSessionsStore();
 const showEditDialog = ref(false);
 const showDeleteDialog = ref(false);
 const showSessions = ref(false);
+const showWatchPatternsDialog = ref(false);
+const watchPatternsInput = ref("");
 const logPanelRef = ref<InstanceType<typeof LogPanel> | null>(null);
 
 const processInfo = computed(() => processes.getStatus(props.project.id));
@@ -145,6 +156,8 @@ async function handleEdit(
   envVars?: Record<string, string>,
   projectType?: string,
   interactive: boolean = false,
+  autoRestart: boolean = false,
+  watchPatterns?: string[],
 ) {
   await config.updateProject(props.group.id, props.project.id, {
     name,
@@ -153,6 +166,8 @@ async function handleEdit(
     envVars: envVars ?? {},
     projectType: (projectType || 'service') as ProjectType,
     interactive,
+    autoRestart,
+    watchPatterns,
   });
   showEditDialog.value = false;
 }
@@ -164,6 +179,22 @@ async function handleDelete() {
   await config.deleteProject(props.group.id, props.project.id);
   showDeleteDialog.value = false;
   ui.clearSelection();
+}
+
+function openWatchPatternsDialog() {
+  watchPatternsInput.value = props.project.watchPatterns?.join(", ") ?? "";
+  showWatchPatternsDialog.value = true;
+}
+
+async function saveWatchPatterns() {
+  const patterns = watchPatternsInput.value.trim()
+    ? watchPatternsInput.value.split(",").map(p => p.trim()).filter(p => p.length > 0)
+    : undefined;
+  
+  await config.updateProject(props.group.id, props.project.id, {
+    watchPatterns: patterns,
+  });
+  showWatchPatternsDialog.value = false;
 }
 </script>
 
@@ -264,6 +295,9 @@ async function handleDelete() {
       <div class="text-xs font-mono bg-muted px-3 py-2 rounded border border-border">
         <span class="text-foreground">{{ props.project.command }}</span>
         <span v-if="props.project.cwd" class="text-muted-foreground ml-2">cwd: {{ props.project.cwd }}</span>
+        <span v-if="props.project.autoRestart && props.project.projectType === 'service'" class="text-muted-foreground ml-2">
+          watching: {{ props.project.watchPatterns && props.project.watchPatterns.length > 0 ? props.project.watchPatterns.join(', ') : 'all files' }}
+        </span>
       </div>
 
       <ProcessControls
@@ -271,7 +305,9 @@ async function handleDelete() {
         :group-id="props.group.id"
         :status="status"
         :auto-restart="props.project.autoRestart"
+        :watch-patterns="props.project.watchPatterns"
         :get-terminal-dimensions="() => logPanelRef?.getDimensions() ?? null"
+        @edit-watch-patterns="openWatchPatternsDialog"
       />
 
       <ProcessStats
@@ -334,6 +370,8 @@ async function handleDelete() {
       :env-vars="props.project.envVars"
       :project-type="props.project.projectType"
       :interactive="props.project.interactive"
+      :auto-restart="props.project.autoRestart"
+      :watch-patterns="props.project.watchPatterns"
       @confirm="handleEdit"
       @cancel="showEditDialog = false"
     />
@@ -345,5 +383,38 @@ async function handleDelete() {
       @confirm="handleDelete"
       @cancel="showDeleteDialog = false"
     />
+
+    <!-- Watch Patterns Dialog -->
+    <Dialog :open="showWatchPatternsDialog" @update:open="showWatchPatternsDialog = false">
+      <DialogContent class="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Watch Patterns</DialogTitle>
+        </DialogHeader>
+        <div class="space-y-4">
+          <div class="space-y-2">
+            <Label for="watch-patterns-edit">
+              Watch Patterns
+              <span class="text-muted-foreground text-xs ml-1">(optional)</span>
+            </Label>
+            <Input
+              id="watch-patterns-edit"
+              v-model="watchPatternsInput"
+              placeholder="src/**/*.ts, package.json"
+            />
+            <p class="text-xs text-muted-foreground">
+              Comma-separated glob patterns. Leave empty to watch all files. Respects .gitignore.
+            </p>
+          </div>
+          <DialogFooter class="flex flex-row justify-end gap-2">
+            <Button type="button" variant="secondary" @click="showWatchPatternsDialog = false">
+              Cancel
+            </Button>
+            <Button type="button" @click="saveWatchPatterns">
+              Save
+            </Button>
+          </DialogFooter>
+        </div>
+      </DialogContent>
+    </Dialog>
   </div>
 </template>

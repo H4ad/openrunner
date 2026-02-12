@@ -32,6 +32,8 @@ const props = defineProps<{
   envVars?: Record<string, string>;
   projectType?: ProjectType;
   interactive?: boolean;
+  autoRestart?: boolean;
+  watchPatterns?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -42,6 +44,8 @@ const emit = defineEmits<{
     envVars: Record<string, string>,
     projectType: ProjectType,
     interactive: boolean,
+    autoRestart: boolean,
+    watchPatterns: string[] | undefined,
   ];
   cancel: [];
 }>();
@@ -51,6 +55,8 @@ const commandValue = ref("");
 const cwdValue = ref("");
 const projectTypeValue = ref<ProjectType>("service");
 const interactiveValue = ref(false);
+const autoRestartValue = ref(false);
+const watchPatternsValue = ref("");
 const envRows = ref<{ key: string; value: string }[]>([]);
 
 watch(
@@ -62,6 +68,8 @@ watch(
       cwdValue.value = props.cwd ?? "";
       projectTypeValue.value = props.projectType ?? "service";
       interactiveValue.value = props.interactive ?? false;
+      autoRestartValue.value = props.autoRestart ?? false;
+      watchPatternsValue.value = props.watchPatterns?.join(", ") ?? "";
       const entries = Object.entries(props.envVars ?? {});
       envRows.value =
         entries.length > 0
@@ -99,6 +107,12 @@ function submit() {
       envVarsResult[key] = row.value;
     }
   }
+
+  // Parse watch patterns from comma-separated string
+  const watchPatterns = watchPatternsValue.value.trim()
+    ? watchPatternsValue.value.split(",").map(p => p.trim()).filter(p => p.length > 0)
+    : undefined;
+
   emit(
     "confirm",
     nameValue.value.trim(),
@@ -107,6 +121,8 @@ function submit() {
     envVarsResult,
     projectTypeValue.value,
     interactiveValue.value,
+    autoRestartValue.value,
+    watchPatterns,
   );
 }
 
@@ -164,6 +180,14 @@ function handleOpenChange(open: boolean) {
           </Label>
         </div>
 
+        <div class="flex items-center space-x-2">
+          <Checkbox id="auto-restart" v-model="autoRestartValue" />
+          <Label for="auto-restart" class="text-sm font-normal cursor-pointer">
+            Auto-Restart on File Change
+            <span class="text-muted-foreground text-xs ml-1">(only for services)</span>
+          </Label>
+        </div>
+
         <div class="space-y-2">
           <Label for="project-cwd">
             Working Directory
@@ -186,6 +210,22 @@ function handleOpenChange(open: boolean) {
               <FileTextIcon class="h-4 w-4" />
             </Button>
           </div>
+        </div>
+
+        <!-- Watch Patterns - only show for services with autoRestart enabled -->
+        <div v-if="projectTypeValue === 'service' && autoRestartValue" class="space-y-2">
+          <Label for="watch-patterns">
+            Watch Patterns
+            <span class="text-muted-foreground text-xs ml-1">(optional)</span>
+          </Label>
+          <Input
+            id="watch-patterns"
+            v-model="watchPatternsValue"
+            placeholder="src/**/*.ts, package.json"
+          />
+          <p class="text-xs text-muted-foreground">
+            Comma-separated glob patterns. Leave empty to watch all files. Respects .gitignore.
+          </p>
         </div>
 
         <!-- Environment Variables -->

@@ -26,6 +26,7 @@ export interface YamlProject {
   cwd?: string;
   interactive?: boolean;
   envVars?: Record<string, string>;
+  watchPatterns?: string[];
 }
 
 /**
@@ -100,6 +101,11 @@ export function writeYaml(group: Group, filePath: string): void {
       yamlProject.envVars = p.envVars;
     }
 
+    // Only include watchPatterns if defined and non-empty
+    if (p.watchPatterns && p.watchPatterns.length > 0) {
+      yamlProject.watchPatterns = p.watchPatterns;
+    }
+
     return yamlProject;
   });
 
@@ -161,6 +167,7 @@ export function yamlToProject(yamlProject: YamlProject, _baseDir: string): Proje
     cwd: yamlProject.cwd ?? null,
     interactive: yamlProject.interactive ?? false,
     envVars: yamlProject.envVars ?? {},
+    watchPatterns: yamlProject.watchPatterns,
   };
 }
 
