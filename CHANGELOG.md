@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.2](https://github.com/H4ad/openrunner/compare/v0.0.1...v0.0.2) (2026-02-12)
+
+
+### Bug Fixes
+
+* **pnpm:** missing radix vue icons ([0ba7e5d](https://github.com/H4ad/openrunner/commit/0ba7e5df2178ceaf404d15b6792b685cf3e07f98))
+
 ## 0.0.1 (2026-02-12)
 
 
