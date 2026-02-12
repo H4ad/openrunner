@@ -49,7 +49,8 @@ async function stop() {
 async function restart() {
   loading.value = true;
   try {
-    await processes.restartProcess(props.groupId, props.projectId);
+    const dims = props.getTerminalDimensions?.();
+    await processes.restartProcess(props.groupId, props.projectId, dims?.cols, dims?.rows);
   } finally {
     loading.value = false;
   }

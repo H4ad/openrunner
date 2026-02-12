@@ -21,8 +21,8 @@ export const useProcessesStore = defineStore("processes", () => {
     await invoke("stop_process", { projectId });
   }
 
-  async function restartProcess(groupId: string, projectId: string) {
-    await invoke("restart_process", { groupId, projectId });
+  async function restartProcess(groupId: string, projectId: string, cols?: number, rows?: number) {
+    await invoke("restart_process", { groupId, projectId, cols, rows });
   }
 
   async function startAllInGroup(groupId: string, projectIds: string[]) {

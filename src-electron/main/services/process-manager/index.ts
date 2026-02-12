@@ -93,21 +93,20 @@ export async function spawnProcess(
     workingDir,
     envVars,
     autoRestart,
-    projectType,
-    interactive
+    projectType
   );
 
   // Start file watcher if autoRestart is enabled and project is a service
   if (autoRestart && projectType === 'service') {
-    // Find the project to get watch patterns and the group for groupDir
-    const projectResult = state.findProject(projectId);
-    const group = state.findGroup(groupId);
-    if (projectResult && group) {
+    // Find the project to get watch patterns and the group for groupDir (from database)
+    const project = state.database.getProject(projectId);
+    const group = state.database.getGroup(groupId);
+    if (project && group) {
       startFileWatcher({
         projectId,
         watchDir: workingDir,
         groupDir: group.directory,
-        patterns: projectResult.project.watchPatterns,
+        patterns: project.watchPatterns,
         onChange: (changedFile) => {
           // Trigger restart when files change
           restartProcess(projectId, changedFile);

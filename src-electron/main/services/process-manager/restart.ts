@@ -42,27 +42,18 @@ function emitRestartLog(projectId: string, message: string): void {
 export async function restartProcess(projectId: string, changedFile?: string): Promise<void> {
   const state = getState();
 
-  // Find the project and group
-  let project: ReturnType<typeof state.database.getProject> = null;
-  let groupId: string | null = null;
+  // Find the project from database (source of truth for current settings)
+  const project = state.database.getProject(projectId);
 
-  for (const group of state.config.groups) {
-    const p = group.projects.find((proj: { id: string }) => proj.id === projectId);
-    if (p) {
-      project = { ...p, groupId: group.id };
-      groupId = group.id;
-      break;
-    }
-  }
-
-  if (!project || !groupId) {
-    console.error(`[Restart] Project ${projectId} not found`);
+  if (!project) {
+    console.error(`[Restart] Project ${projectId} not found in database`);
     return;
   }
 
-  const group = state.findGroup(groupId);
+  const groupId = project.groupId;
+  const group = state.database.getGroup(groupId);
   if (!group) {
-    console.error(`[Restart] Group ${groupId} not found`);
+    console.error(`[Restart] Group ${groupId} not found in database`);
     return;
   }
 

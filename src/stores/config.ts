@@ -74,8 +74,8 @@ export const useConfigStore = defineStore("config", () => {
     autoRestart?: boolean,
     watchPatterns?: string[],
   ): Promise<Project> {
-    const project: Project = {
-      id: crypto.randomUUID(),
+    // Don't include id - the backend generates it
+    const projectData = {
       name,
       command,
       autoRestart: autoRestart ?? (projectType || "service") === "service",
@@ -86,10 +86,13 @@ export const useConfigStore = defineStore("config", () => {
       watchPatterns,
     };
 
-    const updatedGroup = await invoke<Group>("create_project", { groupId, project });
+    const updatedGroup = await invoke<Group>("create_project", { groupId, project: projectData });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
-    return project;
+    
+    // Return the newly created project from the updated group
+    const newProject = updatedGroup.projects[updatedGroup.projects.length - 1];
+    return newProject;
   }
 
   async function updateProject(
@@ -112,25 +115,24 @@ export const useConfigStore = defineStore("config", () => {
     const project = group.projects.find((p) => p.id === projectId);
     if (!project) return;
 
-    // Update local project object
-    if (updates.name !== undefined) project.name = updates.name;
-    if (updates.command !== undefined) project.command = updates.command;
-    if (updates.autoRestart !== undefined) project.autoRestart = updates.autoRestart;
-    if (updates.envVars !== undefined) project.envVars = updates.envVars;
-    if (updates.cwd !== undefined) project.cwd = updates.cwd || null;
+    // Create a copy with updates applied (don't mutate in-place to ensure reactivity)
+    const updatedProject = deepClone(toRaw(project));
+    if (updates.name !== undefined) updatedProject.name = updates.name;
+    if (updates.command !== undefined) updatedProject.command = updates.command;
+    if (updates.autoRestart !== undefined) updatedProject.autoRestart = updates.autoRestart;
+    if (updates.envVars !== undefined) updatedProject.envVars = updates.envVars;
+    if (updates.cwd !== undefined) updatedProject.cwd = updates.cwd || null;
     if (updates.projectType !== undefined) {
-      project.projectType = updates.projectType;
+      updatedProject.projectType = updates.projectType;
       if (updates.autoRestart === undefined) {
-        project.autoRestart = updates.projectType === "service";
+        updatedProject.autoRestart = updates.projectType === "service";
       }
     }
-    if (updates.interactive !== undefined) project.interactive = updates.interactive;
-    if ('watchPatterns' in updates) project.watchPatterns = updates.watchPatterns;
+    if (updates.interactive !== undefined) updatedProject.interactive = updates.interactive;
+    if ('watchPatterns' in updates) updatedProject.watchPatterns = updates.watchPatterns;
 
     // Save to database via command with YAML sync
-    // Use deepClone to remove Vue's reactive proxies - required for Electron IPC serialization
-    const projectToSend = deepClone(toRaw(project));
-    const updatedGroup = await invoke<Group>("update_project", { groupId, project: projectToSend });
+    const updatedGroup = await invoke<Group>("update_project", { groupId, project: updatedProject });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;
   }
@@ -152,19 +154,7 @@ export const useConfigStore = defineStore("config", () => {
     projectIds: string[],
     newType: ProjectType,
   ) {
-    const group = groups.value.find((g) => g.id === groupId);
-    if (!group) return;
-
-    // Update local state first
-    for (const projectId of projectIds) {
-      const project = group.projects.find((p) => p.id === projectId);
-      if (project) {
-        project.projectType = newType;
-        project.autoRestart = newType === "service";
-      }
-    }
-
-    // Save to database via command with YAML sync
+    // Save to database via command with YAML sync (don't mutate local state to ensure reactivity)
     const updatedGroup = await invoke<Group>("convert_multiple_projects", { groupId, projectIds, newType });
     const idx = groups.value.findIndex((g) => g.id === groupId);
     if (idx !== -1) groups.value[idx] = updatedGroup;

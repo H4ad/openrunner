@@ -401,6 +401,25 @@ watch(
   },
 );
 
+// Watch for interactive mode changes and recreate terminal
+watch(
+  () => props.interactive,
+  async () => {
+    // Dispose old terminal and recreate with new settings
+    if (rafId !== null) cancelAnimationFrame(rafId);
+    resizeObserver?.disconnect();
+    unlisten?.();
+    terminal?.dispose();
+    terminal = null;
+    fitAddon = null;
+    searchAddon = null;
+    pendingWrites = [];
+    
+    await nextTick();
+    await setupTerminal();
+  },
+);
+
 function getDimensions() {
   if (!terminal) return null;
   return {

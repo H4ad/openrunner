@@ -21,8 +21,7 @@ export function watchExit(
   workingDir: string,
   envVars: Record<string, string>,
   autoRestart: boolean,
-  projectType: ProjectType,
-  interactive: boolean
+  projectType: ProjectType
 ): void {
   const state = getState();
   const platform = getPlatformManager();
@@ -132,22 +131,11 @@ export function watchExit(
     ) {
       await new Promise((resolve) => setTimeout(resolve, 2000));
 
-      // Re-check auto_restart and project_type from database (they may have changed)
-      const groups = state.database.getAllGroups();
-      let shouldRestart = false;
-      let currentProjectType: ProjectType = 'service';
+      // Re-check settings from database (they may have changed)
+      const project = state.database.getProject(projectId);
 
-      for (const group of groups) {
-        const project = group.projects.find((p) => p.id === projectId);
-        if (project) {
-          shouldRestart = project.autoRestart;
-          currentProjectType = project.projectType;
-          break;
-        }
-      }
-
-      // Only restart if it's still a Service type
-      if (shouldRestart && currentProjectType === 'service') {
+      // Only restart if project exists and is still a Service type with autoRestart enabled
+      if (project && project.autoRestart && project.projectType === 'service') {
         // Check process isn't already running (e.g., user restarted manually)
         if (!state.processes.has(projectId)) {
           try {
@@ -158,9 +146,9 @@ export function watchExit(
               command,
               workingDir,
               envVars,
-              shouldRestart,
-              'service',
-              interactive
+              project.autoRestart,
+              project.projectType,
+              project.interactive
             );
           } catch {
             // Ignore errors on restart
