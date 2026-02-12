@@ -108,6 +108,7 @@ export const IPC_CHANNELS = {
   DOWNLOAD_UPDATE: 'download-update',
   INSTALL_UPDATE: 'install-update',
   GET_APP_VERSION: 'get-app-version',
+  IS_DEV_MODE: 'is-dev-mode',
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];

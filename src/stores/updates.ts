@@ -29,6 +29,7 @@ export const useUpdatesStore = defineStore("updates", () => {
   const releaseDate = ref<string | null>(null);
   const autoUpdateSupported = ref(true);
   const initialized = ref(false);
+  const isDevMode = ref(false);
 
   // Computed
   const hasUpdate = computed(() => available.value || downloaded.value);
@@ -60,6 +61,9 @@ export const useUpdatesStore = defineStore("updates", () => {
 
       currentVersion.value = result.version;
       autoUpdateSupported.value = result.autoUpdateSupported;
+
+      // Check if running in dev mode
+      isDevMode.value = await invoke<boolean>("is-dev-mode");
 
       // Restore state if there's an active update
       if (result.updateState) {
@@ -200,6 +204,42 @@ export const useUpdatesStore = defineStore("updates", () => {
     error.value = null;
   }
 
+  /**
+   * Set mock update data for testing the update preview UI in dev mode.
+   * This allows developers to see how release notes will render.
+   */
+  function setMockUpdate(notes: string): void {
+    if (!isDevMode.value) return;
+
+    // Reset any existing state
+    checking.value = false;
+    downloading.value = false;
+    downloaded.value = false;
+    error.value = null;
+
+    // Set mock update data
+    available.value = true;
+    updateVersion.value = "99.0.0-preview";
+    releaseDate.value = new Date().toISOString();
+    releaseNotes.value = notes;
+  }
+
+  /**
+   * Clear mock update data
+   */
+  function clearMockUpdate(): void {
+    if (!isDevMode.value) return;
+
+    available.value = false;
+    downloading.value = false;
+    downloaded.value = false;
+    progress.value = 0;
+    updateVersion.value = null;
+    releaseNotes.value = null;
+    releaseDate.value = null;
+    error.value = null;
+  }
+
   return {
     // State
     currentVersion,
@@ -213,6 +253,7 @@ export const useUpdatesStore = defineStore("updates", () => {
     releaseNotes,
     releaseDate,
     autoUpdateSupported,
+    isDevMode,
 
     // Computed
     hasUpdate,
@@ -226,5 +267,7 @@ export const useUpdatesStore = defineStore("updates", () => {
     downloadUpdate,
     installUpdate,
     clearError,
+    setMockUpdate,
+    clearMockUpdate,
   };
 });

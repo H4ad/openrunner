@@ -7,7 +7,7 @@ const props = defineProps<{
 }>();
 
 const md = new MarkdownIt({
-  html: false,
+  html: true,
   linkify: true,
   typographer: true,
 });
@@ -22,6 +22,11 @@ const rendered = computed(() => {
 </template>
 
 <style scoped>
+.markdown-content {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
 .markdown-content :deep(*) {
   margin: 0;
 }
@@ -72,6 +77,7 @@ const rendered = computed(() => {
   background-color: hsl(var(--muted));
   border-radius: calc(var(--radius) - 2px);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  word-break: break-all;
 }
 
 .markdown-content :deep(pre) {
@@ -80,16 +86,20 @@ const rendered = computed(() => {
   border-radius: var(--radius);
   overflow-x: auto;
   margin-bottom: 0.5rem;
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .markdown-content :deep(pre code) {
   background-color: transparent;
   padding: 0;
+  word-break: normal;
 }
 
 .markdown-content :deep(a) {
   color: hsl(var(--primary));
   text-decoration: none;
+  word-break: break-all;
 }
 
 .markdown-content :deep(a:hover) {

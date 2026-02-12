@@ -20,6 +20,7 @@ import {
   DownloadIcon,
   RefreshCwIcon,
   RocketIcon,
+  FlaskConicalIcon,
 } from "lucide-vue-next";
 import MarkdownRenderer from "./MarkdownRenderer.vue";
 import ConfirmDialog from "./ConfirmDialog.vue";
@@ -139,6 +140,35 @@ async function clearAllData() {
   } catch {
     // Ignore
   }
+}
+
+// Sample release notes for testing markdown rendering in dev mode
+const sampleReleaseNotes = `## What's New
+
+### Features
+- Added support for multiple project types
+- New dark mode toggle in settings
+- Improved process monitoring with real-time stats
+
+### Bug Fixes
+- Fixed issue with process logs not scrolling correctly
+- Resolved memory leak in stats collector
+- Fixed YAML sync not working for nested configurations
+
+### Breaking Changes
+- Removed deprecated \`legacyMode\` setting
+- Changed default shell to use system detection
+
+### Other
+- Updated dependencies to latest versions
+- Improved TypeScript types coverage
+- Added comprehensive logging for debugging
+
+---
+**Full Changelog**: https://github.com/h4ad/openrunner/compare/v1.0.0...v2.0.0`;
+
+function testUpdatePreview() {
+  updates.setMockUpdate(sampleReleaseNotes);
 }
 
 async function save() {
@@ -316,17 +346,28 @@ watch(
                     v{{ updates.currentVersion || "..." }}
                   </p>
                 </div>
-                <Button
-                  variant="secondary"
-                  :disabled="updates.checking || updates.downloading"
-                  @click="updates.checkForUpdates()"
-                >
-                  <RefreshCwIcon
-                    class="h-4 w-4 mr-2"
-                    :class="{ 'animate-spin': updates.checking }"
-                  />
-                  {{ updates.checking ? "Checking..." : "Check for Updates" }}
-                </Button>
+                <div class="flex gap-2">
+                  <Button
+                    v-if="updates.isDevMode"
+                    variant="outline"
+                    :disabled="updates.checking || updates.downloading"
+                    @click="testUpdatePreview()"
+                  >
+                    <FlaskConicalIcon class="h-4 w-4 mr-2" />
+                    Test Preview
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    :disabled="updates.checking || updates.downloading"
+                    @click="updates.checkForUpdates()"
+                  >
+                    <RefreshCwIcon
+                      class="h-4 w-4 mr-2"
+                      :class="{ 'animate-spin': updates.checking }"
+                    />
+                    {{ updates.checking ? "Checking..." : "Check for Updates" }}
+                  </Button>
+                </div>
               </div>
 
               <!-- Update Available -->
@@ -337,18 +378,33 @@ watch(
                     <div>
                       <p class="text-sm font-medium text-foreground">
                         Version {{ updates.updateVersion }} available
+                        <span
+                          v-if="updates.isDevMode && updates.updateVersion === '99.0.0-preview'"
+                          class="ml-2 text-xs text-amber-400"
+                        >
+                          (Preview Mode)
+                        </span>
                       </p>
                       <p v-if="updates.releaseDate" class="text-xs text-muted-foreground">
                         Released {{ new Date(updates.releaseDate).toLocaleDateString() }}
                       </p>
                     </div>
-                    <Button
-                      v-if="!updates.downloading"
-                      @click="updates.downloadUpdate()"
-                    >
-                      <DownloadIcon class="h-4 w-4 mr-2" />
-                      {{ updates.autoUpdateSupported ? "Download" : "View Release" }}
-                    </Button>
+                    <div class="flex gap-2">
+                      <Button
+                        v-if="updates.isDevMode && updates.updateVersion === '99.0.0-preview'"
+                        variant="ghost"
+                        @click="updates.clearMockUpdate()"
+                      >
+                        Clear Preview
+                      </Button>
+                      <Button
+                        v-if="!updates.downloading && updates.updateVersion !== '99.0.0-preview'"
+                        @click="updates.downloadUpdate()"
+                      >
+                        <DownloadIcon class="h-4 w-4 mr-2" />
+                        {{ updates.autoUpdateSupported ? "Download" : "View Release" }}
+                      </Button>
+                    </div>
                   </div>
 
                   <!-- Download Progress -->
@@ -363,9 +419,9 @@ watch(
                   <!-- Release Notes Preview -->
                   <div
                     v-if="updates.releaseNotes"
-                    class="text-xs text-muted-foreground bg-muted p-3 rounded-md max-h-32 overflow-y-auto"
+                    class="bg-muted p-3 rounded-md max-h-64 overflow-y-auto release-notes-container"
                   >
-                    <p class="font-medium mb-2 text-foreground">Release Notes:</p>
+                    <p class="text-xs font-medium mb-2 text-foreground">Release Notes:</p>
                     <MarkdownRenderer :content="updates.releaseNotes" />
                   </div>
                 </div>
@@ -503,3 +559,27 @@ watch(
     @cancel="showClearAllDialog = false"
   />
 </template>
+
+<style scoped>
+.release-notes-container {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+}
+
+.release-notes-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.release-notes-container::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.release-notes-container::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 3px;
+}
+
+.release-notes-container::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+}
+</style>

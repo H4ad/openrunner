@@ -2,7 +2,7 @@
  * IPC handlers for auto-update functionality
  */
 
-import { ipcMain } from 'electron';
+import { ipcMain, app } from 'electron';
 import { IPC_CHANNELS } from '../../shared/events';
 import {
   checkForUpdates,
@@ -66,5 +66,10 @@ export function registerUpdatesHandlers(): void {
       updateState: getUpdateState(),
       autoUpdateSupported: isAutoUpdateSupported(),
     };
+  });
+
+  // Check if running in development mode (app not packaged)
+  ipcMain.handle(IPC_CHANNELS.IS_DEV_MODE, () => {
+    return !app.isPackaged;
   });
 }
