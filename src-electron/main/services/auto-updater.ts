@@ -2,6 +2,7 @@
  * Auto-updater service using electron-updater with GitHub Releases
  */
 
+import type { UpdateInfo, ProgressInfo } from 'electron-updater';
 const electronUpdater = require('electron-updater');
 import { app, BrowserWindow, shell } from 'electron';
 import { IPC_EVENTS } from '../../shared/events';
@@ -92,7 +93,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   // Event: Update available
-  electronUpdater.autoUpdater.on('update-available', (info: electronUpdater.UpdateInfo) => {
+  electronUpdater.autoUpdater.on('update-available', (info: UpdateInfo) => {
     console.log('[AutoUpdater] Update available:', info.version);
     updateState.checking = false;
     updateState.available = true;
@@ -112,7 +113,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   // Event: No update available
-  electronUpdater.autoUpdater.on('update-not-available', (info: electronUpdater.UpdateInfo) => {
+  electronUpdater.autoUpdater.on('update-not-available', (info: UpdateInfo) => {
     console.log('[AutoUpdater] No update available. Current version:', info.version);
     updateState.checking = false;
     updateState.available = false;
@@ -122,7 +123,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   // Event: Download progress
-  electronUpdater.autoUpdater.on('download-progress', (progress: electronUpdater.ProgressInfo) => {
+  electronUpdater.autoUpdater.on('download-progress', (progress: ProgressInfo) => {
     console.log(`[AutoUpdater] Download progress: ${progress.percent.toFixed(1)}%`);
     updateState.downloading = true;
     updateState.progress = progress.percent;
@@ -135,7 +136,7 @@ export function initAutoUpdater(window: BrowserWindow): void {
   });
 
   // Event: Update downloaded
-  electronUpdater.autoUpdater.on('update-downloaded', (info: electronUpdater.UpdateInfo) => {
+  electronUpdater.autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
     console.log('[AutoUpdater] Update downloaded:', info.version);
     updateState.downloading = false;
     updateState.downloaded = true;
