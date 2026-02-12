@@ -21,10 +21,14 @@ import {
   RefreshCwIcon,
   RocketIcon,
   FlaskConicalIcon,
+  TerminalIcon,
+  CheckCircleIcon,
+  XCircleIcon,
+  Loader2Icon,
 } from "lucide-vue-next";
 import MarkdownRenderer from "./MarkdownRenderer.vue";
 import ConfirmDialog from "./ConfirmDialog.vue";
-import type { StorageStats } from "../../types";
+import type { StorageStats, CliInstallResult } from "../../types";
 
 const props = defineProps<{
   open: boolean;
@@ -49,6 +53,11 @@ const showClearAllDialog = ref(false);
 const savingEditor = ref(false);
 const savingShell = ref(false);
 const loadingStorage = ref(false);
+
+// CLI state
+const cliStatus = ref<CliInstallResult | null>(null);
+const cliLoading = ref(false);
+const cliError = ref<string | null>(null);
 
 const formattedSize = computed(() => {
   if (!storageStats.value) return "0 B";
@@ -123,6 +132,47 @@ function useDetectedShell() {
   shellValue.value = detectedShell.value;
 }
 
+async function loadCliStatus() {
+  try {
+    cliStatus.value = await invoke<CliInstallResult>("cli:get-status");
+    cliError.value = null;
+  } catch {
+    cliStatus.value = null;
+  }
+}
+
+async function installCli() {
+  cliLoading.value = true;
+  cliError.value = null;
+  try {
+    const result = await invoke<CliInstallResult>("cli:install");
+    cliStatus.value = result;
+    if (!result.success) {
+      cliError.value = result.message;
+    }
+  } catch (error) {
+    cliError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    cliLoading.value = false;
+  }
+}
+
+async function uninstallCli() {
+  cliLoading.value = true;
+  cliError.value = null;
+  try {
+    const result = await invoke<CliInstallResult>("cli:uninstall");
+    cliStatus.value = result;
+    if (!result.success) {
+      cliError.value = result.message;
+    }
+  } catch (error) {
+    cliError.value = error instanceof Error ? error.message : String(error);
+  } finally {
+    cliLoading.value = false;
+  }
+}
+
 async function cleanupOldData() {
   try {
     storageStats.value = await invoke<StorageStats>("cleanup_storage", {
@@ -194,6 +244,7 @@ watch(
       loadStorageStats();
       detectEditor();
       detectShell();
+      loadCliStatus();
     }
   },
 );
@@ -327,6 +378,76 @@ watch(
                   >
                     Use this
                   </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
+        <!-- CLI Section -->
+        <section>
+          <h3 class="text-sm font-semibold text-foreground mb-3">Command Line</h3>
+          <Card>
+            <CardContent class="px-4 py-4 space-y-4">
+              <div class="flex items-center justify-between">
+                <div class="space-y-1">
+                  <div class="flex items-center gap-2">
+                    <TerminalIcon class="h-4 w-4 text-muted-foreground" />
+                    <Label>CLI Command</Label>
+                  </div>
+                  <p class="text-xs text-muted-foreground">
+                    Install the <code class="px-1 py-0.5 bg-muted rounded">openrunner</code> command to create groups from your terminal.
+                  </p>
+                </div>
+                <div class="flex items-center gap-3">
+                  <div v-if="cliStatus" class="flex items-center gap-1.5">
+                    <CheckCircleIcon v-if="cliStatus.installed" class="h-4 w-4 text-green-500" />
+                    <XCircleIcon v-else class="h-4 w-4 text-muted-foreground" />
+                    <span class="text-xs" :class="cliStatus.installed ? 'text-green-500' : 'text-muted-foreground'">
+                      {{ cliStatus.installed ? "Installed" : "Not installed" }}
+                    </span>
+                  </div>
+                  <Button
+                    v-if="cliStatus?.installed"
+                    variant="destructive"
+                    size="sm"
+                    :disabled="cliLoading"
+                    @click="uninstallCli"
+                  >
+                    <Loader2Icon v-if="cliLoading" class="h-4 w-4 mr-2 animate-spin" />
+                    Uninstall
+                  </Button>
+                  <Button
+                    v-else
+                    size="sm"
+                    :disabled="cliLoading"
+                    @click="installCli"
+                  >
+                    <Loader2Icon v-if="cliLoading" class="h-4 w-4 mr-2 animate-spin" />
+                    Install CLI
+                  </Button>
+                </div>
+              </div>
+
+              <div v-if="cliStatus?.installed && cliStatus.path" class="text-xs text-muted-foreground">
+                Installed at: <code class="px-1 py-0.5 bg-muted rounded">{{ cliStatus.path }}</code>
+              </div>
+
+              <div v-if="cliError" class="text-xs text-red-400 bg-red-950/50 p-3 rounded-md whitespace-pre-wrap">
+                {{ cliError }}
+              </div>
+
+              <Separator />
+
+              <div class="space-y-2">
+                <p class="text-xs font-medium text-foreground">Usage:</p>
+                <div class="bg-muted p-3 rounded-md space-y-1">
+                  <code class="block text-xs text-green-400">openrunner new .</code>
+                  <span class="text-xs text-muted-foreground">Auto-detect projects in current directory</span>
+                </div>
+                <div class="bg-muted p-3 rounded-md space-y-1">
+                  <code class="block text-xs text-green-400">openrunner new ~/myproject --name "My Project"</code>
+                  <span class="text-xs text-muted-foreground">Create group with a specific name</span>
                 </div>
               </div>
             </CardContent>

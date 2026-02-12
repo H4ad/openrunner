@@ -109,6 +109,11 @@ export const IPC_CHANNELS = {
   INSTALL_UPDATE: 'install-update',
   GET_APP_VERSION: 'get-app-version',
   IS_DEV_MODE: 'is-dev-mode',
+
+  // CLI commands
+  CLI_GET_STATUS: 'cli:get-status',
+  CLI_INSTALL: 'cli:install',
+  CLI_UNINSTALL: 'cli:uninstall',
 } as const;
 
 export type IpcEvent = (typeof IPC_EVENTS)[keyof typeof IPC_EVENTS];

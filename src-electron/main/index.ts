@@ -1,6 +1,9 @@
 /**
  * Main process entry point for Electron.
  * This is the equivalent of src-tauri/src/lib.rs
+ * 
+ * NOTE: CLI is handled separately via src-electron/cli/standalone.ts
+ * which is built as out/main/cli.js and invoked via the 'openrunner' binary.
  */
 
 import * as Sentry from "@sentry/electron/main";
