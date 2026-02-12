@@ -99,6 +99,7 @@ export interface AppSettings {
   editor: string | null;
   fullscreen: boolean | null;
   shell: string | null;
+  minimizeToTray: boolean;
 }
 
 // ============================================================================

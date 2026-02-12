@@ -8,6 +8,7 @@ export const useSettingsStore = defineStore("settings", () => {
   const editor = ref<string | null>(null);
   const fullscreen = ref<boolean | null>(null);
   const shell = ref<string | null>(null);
+  const minimizeToTray = ref(false);
 
   async function load() {
     const settings = await invoke<AppSettings>("get_settings");
@@ -15,6 +16,7 @@ export const useSettingsStore = defineStore("settings", () => {
     editor.value = settings.editor;
     fullscreen.value = settings.fullscreen;
     shell.value = settings.shell;
+    minimizeToTray.value = settings.minimizeToTray;
   }
 
   async function updateMaxLogLines(value: number) {
@@ -23,6 +25,7 @@ export const useSettingsStore = defineStore("settings", () => {
       editor: editor.value,
       fullscreen: fullscreen.value,
       shell: shell.value,
+      minimizeToTray: minimizeToTray.value,
     };
     await invoke("update_settings", { settings });
     maxLogLines.value = value;
@@ -34,6 +37,7 @@ export const useSettingsStore = defineStore("settings", () => {
       editor: value,
       fullscreen: fullscreen.value,
       shell: shell.value,
+      minimizeToTray: minimizeToTray.value,
     };
     await invoke("update_settings", { settings });
     editor.value = value;
@@ -45,6 +49,7 @@ export const useSettingsStore = defineStore("settings", () => {
       editor: editor.value,
       fullscreen: value,
       shell: shell.value,
+      minimizeToTray: minimizeToTray.value,
     };
     await invoke("update_settings", { settings });
     fullscreen.value = value;
@@ -56,9 +61,22 @@ export const useSettingsStore = defineStore("settings", () => {
       editor: editor.value,
       fullscreen: fullscreen.value,
       shell: value,
+      minimizeToTray: minimizeToTray.value,
     };
     await invoke("update_settings", { settings });
     shell.value = value;
+  }
+
+  async function updateMinimizeToTray(value: boolean) {
+    const settings: AppSettings = {
+      maxLogLines: maxLogLines.value,
+      editor: editor.value,
+      fullscreen: fullscreen.value,
+      shell: shell.value,
+      minimizeToTray: value,
+    };
+    await invoke("update_settings", { settings });
+    minimizeToTray.value = value;
   }
 
   async function toggleFullscreen() {
@@ -79,11 +97,13 @@ export const useSettingsStore = defineStore("settings", () => {
     editor,
     fullscreen,
     shell,
+    minimizeToTray,
     load,
     updateMaxLogLines,
     updateEditor,
     updateFullscreen,
     updateShell,
+    updateMinimizeToTray,
     toggleFullscreen,
     detectSystemEditor,
     detectSystemShell,
