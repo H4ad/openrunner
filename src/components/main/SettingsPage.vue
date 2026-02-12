@@ -16,6 +16,7 @@ import { useUpdatesStore } from "../../stores/updates";
 import { useUiStore } from "../../stores/ui";
 import type { StorageStats } from "../../types";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
+import MarkdownRenderer from "../shared/MarkdownRenderer.vue";
 
 const settings = useSettingsStore();
 const updates = useUpdatesStore();
@@ -290,10 +291,10 @@ onMounted(async () => {
                 <!-- Release Notes Preview -->
                 <div
                   v-if="updates.releaseNotes"
-                  class="text-xs text-muted-foreground bg-muted p-3 rounded-md max-h-24 overflow-y-auto"
+                  class="text-xs text-muted-foreground bg-muted p-3 rounded-md max-h-32 overflow-y-auto"
                 >
-                  <p class="font-medium mb-1">Release Notes:</p>
-                  <p class="whitespace-pre-wrap">{{ updates.releaseNotes }}</p>
+                  <p class="font-medium mb-2 text-foreground">Release Notes:</p>
+                  <MarkdownRenderer :content="updates.releaseNotes" />
                 </div>
               </div>
             </template>
