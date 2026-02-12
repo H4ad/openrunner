@@ -10,10 +10,32 @@
  */
 
 import { app } from 'electron';
-import { existsSync, unlinkSync, writeFileSync, mkdirSync, copyFileSync, rmSync } from 'fs';
+import { existsSync, unlinkSync, writeFileSync, mkdirSync, copyFileSync, rmSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { execSync, spawn } from 'child_process';
 import { is } from '@electron-toolkit/utils';
+
+/**
+ * Recursively copy a directory
+ */
+function copyDirRecursive(src: string, dest: string): void {
+  if (!existsSync(dest)) {
+    mkdirSync(dest, { recursive: true });
+  }
+  
+  const entries = readdirSync(src);
+  for (const entry of entries) {
+    const srcPath = join(src, entry);
+    const destPath = join(dest, entry);
+    const stat = statSync(srcPath);
+    
+    if (stat.isDirectory()) {
+      copyDirRecursive(srcPath, destPath);
+    } else {
+      copyFileSync(srcPath, destPath);
+    }
+  }
+}
 
 export interface CliInstallResult {
   success: boolean;
@@ -70,6 +92,19 @@ function getChunksSourcePath(): string {
 }
 
 /**
+ * Get the path to the node_modules directory with native modules
+ */
+function getNativeModulesPath(): string {
+  if (is.dev) {
+    // In development, use the project's node_modules
+    return join(__dirname, '..', '..', '..', 'node_modules');
+  }
+  // In production, native modules are unpacked from asar
+  const resourcesPath = process.resourcesPath;
+  return join(resourcesPath, 'app.asar.unpacked', 'node_modules');
+}
+
+/**
  * Get the target installation path for the CLI symlink/script
  */
 function getCliTargetPath(): string {
@@ -91,6 +126,7 @@ function getCliTargetPath(): string {
 function copyCliToPersistentLocation(): string {
   const persistentDir = getPersistentCliDir();
   const chunksDir = join(persistentDir, 'chunks');
+  const nodeModulesDir = join(persistentDir, 'node_modules');
   
   // Create directories
   if (!existsSync(persistentDir)) {
@@ -108,12 +144,38 @@ function copyCliToPersistentLocation(): string {
   // Copy chunks directory contents
   const sourceChunks = getChunksSourcePath();
   if (existsSync(sourceChunks)) {
-    const { readdirSync } = require('fs');
     const files = readdirSync(sourceChunks);
     for (const file of files) {
       copyFileSync(join(sourceChunks, file), join(chunksDir, file));
     }
   }
+
+  // Copy native modules (better-sqlite3) required by CLI
+  const sourceNodeModules = getNativeModulesPath();
+  const nativeModules = ['better-sqlite3'];
+  
+  for (const moduleName of nativeModules) {
+    const srcModule = join(sourceNodeModules, moduleName);
+    const destModule = join(nodeModulesDir, moduleName);
+    
+    if (existsSync(srcModule)) {
+      // Remove existing module directory to ensure clean copy
+      if (existsSync(destModule)) {
+        rmSync(destModule, { recursive: true, force: true });
+      }
+      copyDirRecursive(srcModule, destModule);
+    }
+  }
+
+  // Create a minimal package.json so Node can resolve the modules
+  const packageJson = {
+    name: 'openrunner-cli',
+    type: 'module',
+    dependencies: {
+      'better-sqlite3': '*'
+    }
+  };
+  writeFileSync(join(persistentDir, 'package.json'), JSON.stringify(packageJson, null, 2));
 
   return targetCli;
 }
