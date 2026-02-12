@@ -88,32 +88,18 @@ jobs:
 
       - name: Package for macOS
         if: contains(matrix.platform, 'macos')
-        run: pnpm exec electron-builder --mac --${{ matrix.arch }} --config --publish never
+        run: pnpm exec electron-builder --mac --${{ matrix.arch }} --config --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package for Linux
         if: contains(matrix.platform, 'ubuntu')
-        run: pnpm exec electron-builder --linux --${{ matrix.arch }} --config --publish never
+        run: pnpm exec electron-builder --linux --${{ matrix.arch }} --config --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Package for Windows
         if: contains(matrix.platform, 'windows')
-        run: pnpm exec electron-builder --win --${{ matrix.arch }} --config --publish never
+        run: pnpm exec electron-builder --win --${{ matrix.arch }} --config --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload artifacts to release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.release-please.outputs.tag_name }}
-          files: |
-            dist/*.dmg
-            dist/*.zip
-            dist/*.exe
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.tar.gz
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
