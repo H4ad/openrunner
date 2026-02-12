@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.6](https://github.com/H4ad/openrunner/compare/v0.2.5...v0.2.6) (2026-02-12)
+
+
+### Features
+
+* **cli:** add back the cli functionality ([3f9a7b3](https://github.com/H4ad/openrunner/commit/3f9a7b318a5a3662145eb73562973cbf3dfdbe9e))
+
+
+### Bug Fixes
+
+* **state:** out of sync issues ([5fd43f4](https://github.com/H4ad/openrunner/commit/5fd43f4479ea790d1e0bffe5db27648926fdc5e6))
+
 ## [0.2.5](https://github.com/H4ad/openrunner/compare/v0.2.4...v0.2.5) (2026-02-12)
 
 
