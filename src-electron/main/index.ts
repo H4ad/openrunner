@@ -3,6 +3,16 @@
  * This is the equivalent of src-tauri/src/lib.rs
  */
 
+import * as Sentry from "@sentry/electron/main";
+
+Sentry.init({
+  dsn: "https://ef5067aac9111e8769d07679e969a8e1@o4505726434541568.ingest.us.sentry.io/4510872960499712",
+  enableLogs: true,
+  integrations: [
+    Sentry.consoleLoggingIntegration({ levels: ["warn", "error"] }),
+  ],
+});
+
 import { app, BrowserWindow, shell, ipcMain, dialog, globalShortcut, nativeImage } from 'electron';
 import { join } from 'path';
 import { electronApp, optimizer, is } from '@electron-toolkit/utils';
@@ -108,6 +118,25 @@ function createWindow(): void {
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url);
     return { action: 'deny' };
+  });
+
+  // Configure CSP for Sentry Session Replay (requires WebWorker support)
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+          "style-src 'self' 'unsafe-inline'; " +
+          "img-src 'self' data: blob:; " +
+          "font-src 'self'; " +
+          "connect-src 'self' https://*.sentry.io https://*.ingest.sentry.io; " +
+          "worker-src 'self' blob:; " +
+          "child-src 'self' blob:;"
+        ]
+      }
+    });
   });
 
   // Load the app

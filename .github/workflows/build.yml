@@ -85,6 +85,8 @@ jobs:
 
       - name: Build Electron app
         run: pnpm build
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Package for macOS
         if: contains(matrix.platform, 'macos')

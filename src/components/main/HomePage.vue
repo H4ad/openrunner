@@ -70,14 +70,6 @@ const stoppedProjects = computed(() =>
     }),
 );
 
-const servicesRunning = computed(() =>
-  runningProjects.value.filter((project) => project.projectType === "service").length,
-);
-
-const tasksRunning = computed(() =>
-  runningProjects.value.filter((project) => project.projectType === "task").length,
-);
-
 const globalCpuAvg = computed(() => {
   const running = runningProjects.value;
   if (running.length === 0) return 0;
