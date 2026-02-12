@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/H4ad/openrunner/compare/v0.1.0...v0.2.0) (2026-02-12)
+
+
+### Features
+
+* **autoRestart:** auto restart when file change & allow customize the watching files ([0c3f17d](https://github.com/H4ad/openrunner/commit/0c3f17d29b074961e5f5672296a2bcbb519ca056))
+
+
+### Bug Fixes
+
+* **electron-builder:** try fix issue with icon ([4a79ec7](https://github.com/H4ad/openrunner/commit/4a79ec780c90c1db96abccc2bb64533d6bb8f124))
+* **icon:** not loading the icon correctly ([4a79ec7](https://github.com/H4ad/openrunner/commit/4a79ec780c90c1db96abccc2bb64533d6bb8f124))
+
 ## [0.1.0](https://github.com/H4ad/openrunner/compare/v0.0.2...v0.1.0) (2026-02-12)
 
 
