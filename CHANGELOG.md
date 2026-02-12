@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.7](https://github.com/H4ad/openrunner/compare/v0.2.6...v0.2.7) (2026-02-12)
+
+
+### Bug Fixes
+
+* **cli:** not being able to extract after publish ([0c778e9](https://github.com/H4ad/openrunner/commit/0c778e9007fd616ae6509b060d15b0a13954740a))
+
 ## [0.2.6](https://github.com/H4ad/openrunner/compare/v0.2.5...v0.2.6) (2026-02-12)
 
 
