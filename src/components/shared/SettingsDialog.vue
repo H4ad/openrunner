@@ -45,6 +45,7 @@ const maxLogLines = ref(settings.maxLogLines);
 const editorValue = ref(settings.editor ?? "");
 const fullscreen = ref(settings.fullscreen ?? false);
 const shellValue = ref(settings.shell ?? "");
+const minimizeToTray = ref(settings.minimizeToTray);
 const detectedEditor = ref("");
 const detectedShell = ref("");
 const storageStats = ref<StorageStats | null>(null);
@@ -221,12 +222,6 @@ function testUpdatePreview() {
   updates.setMockUpdate(sampleReleaseNotes);
 }
 
-async function save() {
-  await settings.updateMaxLogLines(maxLogLines.value);
-  await settings.updateFullscreen(fullscreen.value);
-  emit("close");
-}
-
 function handleOpenChange(open: boolean) {
   if (!open) {
     emit("close");
@@ -241,6 +236,7 @@ watch(
       editorValue.value = settings.editor ?? "";
       fullscreen.value = settings.fullscreen ?? false;
       shellValue.value = settings.shell ?? "";
+      minimizeToTray.value = settings.minimizeToTray;
       loadStorageStats();
       detectEditor();
       detectShell();
@@ -248,6 +244,25 @@ watch(
     }
   },
 );
+
+// Auto-save settings when values change
+watch(maxLogLines, async (value) => {
+  if (props.open && value !== settings.maxLogLines) {
+    await settings.updateMaxLogLines(value);
+  }
+});
+
+watch(fullscreen, async (value) => {
+  if (props.open && value !== settings.fullscreen) {
+    await settings.updateFullscreen(value);
+  }
+});
+
+watch(minimizeToTray, async (value) => {
+  if (props.open && value !== settings.minimizeToTray) {
+    await settings.updateMinimizeToTray(value);
+  }
+});
 </script>
 
 <template>
@@ -294,6 +309,22 @@ watch(
                   id="fullscreen"
                   :model-value="fullscreen"
                   @update:model-value="fullscreen = $event"
+                />
+              </div>
+
+              <Separator />
+
+              <div class="flex items-center justify-between space-y-0">
+                <div class="space-y-0.5">
+                  <Label for="minimize-to-tray">Minimize to Tray</Label>
+                  <p class="text-xs text-muted-foreground">
+                    Keep app in system tray when closing. Right-click tray icon to quit.
+                  </p>
+                </div>
+                <Switch
+                  id="minimize-to-tray"
+                  :model-value="minimizeToTray"
+                  @update:model-value="minimizeToTray = $event"
                 />
               </div>
             </CardContent>
@@ -662,11 +693,10 @@ watch(
         </section>
       </div>
 
-      <div class="flex justify-end gap-2 pt-4 border-t">
+      <div class="flex justify-end pt-4 border-t">
         <Button variant="secondary" @click="emit('close')">
           Close
         </Button>
-        <Button @click="save">Save Changes</Button>
       </div>
     </DialogContent>
   </Dialog>

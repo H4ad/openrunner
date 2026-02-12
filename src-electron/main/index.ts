@@ -26,6 +26,7 @@ import { initializeState, getState, shutdownState } from './services/state';
 import { startStatsCollection, stopStatsCollection } from './services/stats-collector';
 import { getYamlWatcher } from './services/yaml-watcher';
 import { initAutoUpdater, checkForUpdates } from './services/auto-updater';
+import { initSystemTray, destroySystemTray, setQuitting, isAppQuitting } from './services/system-tray';
 import { IPC_EVENTS, IPC_CHANNELS } from '../shared/events';
 
 // Keep a global reference to prevent garbage collection
@@ -172,10 +173,28 @@ function createWindow(): void {
           console.error('[AutoUpdater] Initial update check failed:', error);
         });
       }, 10000);
+
+      // Initialize system tray
+      initSystemTray(mainWindow);
+    }
+  });
+
+  // Handle close event - minimize to tray if setting is enabled
+  // When minimizeToTray is enabled, closing the window only hides it to the tray
+  // The only way to quit the app is via the tray's "Quit" option
+  mainWindow.on('close', (event) => {
+    const state = getState();
+    const settings = state.database.getSettings();
+    
+    // If minimize to tray is enabled and we're not explicitly quitting
+    if (settings.minimizeToTray && !isAppQuitting()) {
+      event.preventDefault();
+      mainWindow?.hide();
     }
   });
 
   mainWindow.on('closed', () => {
+    destroySystemTray();
     mainWindow = null;
   });
 }
@@ -271,7 +290,11 @@ app.whenReady().then(async () => {
  */
 app.on('window-all-closed', () => {
   // On macOS, apps usually stay active until explicitly quit
-  if (process.platform !== 'darwin') {
+  // Also don't quit if minimize to tray is enabled (user must use tray to quit)
+  const state = getState();
+  const settings = state?.database?.getSettings();
+  
+  if (process.platform !== 'darwin' && !settings?.minimizeToTray) {
     app.quit();
   }
 });
@@ -280,6 +303,9 @@ app.on('window-all-closed', () => {
  * Handle app quit - graceful shutdown
  */
 app.on('before-quit', async (event) => {
+  // Set quitting flag to bypass minimize to tray
+  setQuitting(true);
+
   // Notify renderer that app is closing
   if (mainWindow) {
     mainWindow.webContents.send(IPC_EVENTS.APP_CLOSING);

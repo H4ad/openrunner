@@ -732,12 +732,14 @@ export class Database {
     const editor = this.getSetting('editor', '');
     const fullscreen = this.getSetting('fullscreen', '');
     const shell = this.getSetting('shell', '');
+    const minimizeToTray = this.getSetting('minimize_to_tray', 'true');
 
     return {
       maxLogLines: parseInt(maxLogLines, 10) || 10000,
       editor: editor || null,
       fullscreen: fullscreen === '' ? null : fullscreen === 'true',
       shell: shell || null,
+      minimizeToTray: minimizeToTray === 'true',
     };
   }
 
@@ -752,6 +754,7 @@ export class Database {
       settings.fullscreen === null ? '' : settings.fullscreen.toString()
     );
     this.setSetting('shell', settings.shell ?? '');
+    this.setSetting('minimize_to_tray', settings.minimizeToTray.toString());
   }
 
   private getSetting(key: string, defaultValue: string): string {
