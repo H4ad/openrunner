@@ -1,7 +1,7 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
-import type { Session, SessionWithStats, MetricPoint } from "../types";
+import { invoke } from "@/lib/api";
+import type { Session, SessionWithStats, MetricPoint, LogMessage } from "../types";
 
 export const useSessionsStore = defineStore("sessions", () => {
   const sessions = ref<Session[]>([]);
@@ -53,8 +53,8 @@ export const useSessionsStore = defineStore("sessions", () => {
     _groupId: string,
     projectId: string,
     limit: number,
-  ): Promise<string> {
-    return await invoke<string>("get_recent_logs", { projectId, limit });
+  ): Promise<LogMessage[]> {
+    return await invoke<LogMessage[]>("get_recent_logs", { projectId, limit });
   }
 
   async function getLastMetric(

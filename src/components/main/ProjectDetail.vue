@@ -42,6 +42,7 @@ const sessionsStore = useSessionsStore();
 const showEditDialog = ref(false);
 const showDeleteDialog = ref(false);
 const showSessions = ref(false);
+const logPanelRef = ref<InstanceType<typeof LogPanel> | null>(null);
 
 const processInfo = computed(() => processes.getStatus(props.project.id));
 const status = computed(() => processInfo.value?.status ?? "stopped");
@@ -270,6 +271,7 @@ async function handleDelete() {
         :group-id="props.group.id"
         :status="status"
         :auto-restart="props.project.autoRestart"
+        :get-terminal-dimensions="() => logPanelRef?.getDimensions() ?? null"
       />
 
       <ProcessStats
@@ -316,6 +318,7 @@ async function handleDelete() {
     />
     <LogPanel
       v-else
+      ref="logPanelRef"
       :project-id="props.project.id"
       :group-id="props.group.id"
       :interactive="props.project.interactive"

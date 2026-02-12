@@ -2,16 +2,18 @@
 import { ref } from "vue";
 import { useConfigStore } from "../../stores/config";
 import { useUiStore } from "../../stores/ui";
+import { useUpdatesStore } from "../../stores/updates";
 import GroupItem from "./GroupItem.vue";
 import EditDialog from "../shared/EditDialog.vue";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { GearIcon, PlusIcon, UploadIcon, HomeIcon } from "@radix-icons/vue";
-import { open } from "@tauri-apps/plugin-dialog";
+import { open } from "@/lib/dialog";
 
 const config = useConfigStore();
 const ui = useUiStore();
+const updatesStore = useUpdatesStore();
 const showNewGroupDialog = ref(false);
 
 async function handleCreateGroup(name: string, directory?: string) {
@@ -71,11 +73,17 @@ async function importGroup() {
         <Button
           variant="ghost"
           size="icon"
-          class="h-7 w-7"
+          class="h-7 w-7 relative"
           title="Settings"
           @click="ui.showSettings()"
         >
           <GearIcon class="h-4 w-4" />
+          <!-- Update badge -->
+          <span
+            v-if="updatesStore.hasUpdate"
+            class="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-blue-500 border border-card"
+            :class="{ 'animate-pulse': updatesStore.downloaded }"
+          />
         </Button>
       </div>
     </div>

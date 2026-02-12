@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
+import { onMounted, onUnmounted, ref, watch, nextTick } from "vue";
 import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebLinksAddon } from "@xterm/addon-web-links";
 import { SearchAddon } from "@xterm/addon-search";
-import { open } from "@tauri-apps/plugin-shell";
+import { open } from "@/lib/shell";
 import "@xterm/xterm/css/xterm.css";
 import { useLogsStore } from "../../stores/logs";
 import { useSettingsStore } from "../../stores/settings";
 import type { LogMessage } from "../../types";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
+import { listen, type UnlistenFn } from "@/lib/api";
+import { invoke } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -44,6 +44,7 @@ let searchAddon: SearchAddon | null = null;
 let unlisten: UnlistenFn | null = null;
 let pendingWrites: string[] = [];
 let rafId: number | null = null;
+let resizeObserver: ResizeObserver | null = null;
 
 function flushWrites() {
   if (!terminal || pendingWrites.length === 0) return;
@@ -187,6 +188,12 @@ async function setupTerminal() {
 
   terminal.open(terminalRef.value);
 
+  // Set up ResizeObserver to handle container size changes
+  resizeObserver = new ResizeObserver(() => {
+    handleResize();
+  });
+  resizeObserver.observe(terminalRef.value);
+
   // Enable PTY interaction if interactive mode
   if (props.interactive) {
     terminal.onData(async (data) => {
@@ -298,17 +305,23 @@ async function setupTerminal() {
     },
   });
 
-  try {
-    fitAddon.fit();
-  } catch {
-    // Terminal not visible yet
-  }
+  // Wait for DOM to be fully rendered, then fit terminal
+  await nextTick();
+  
+  // Small delay to ensure container has proper dimensions
+  setTimeout(() => {
+    try {
+      fitAddon?.fit();
+    } catch {
+      // Terminal not visible yet
+    }
+  }, 50);
 
   await writeExistingLogs();
 
-  unlisten = await listen<LogMessage>("process-log", (event) => {
-    if (event.payload.projectId === props.projectId) {
-      scheduleWrite(event.payload.data);
+  unlisten = await listen<LogMessage>("process-log", (payload) => {
+    if (payload.projectId === props.projectId) {
+      scheduleWrite(payload.data);
     }
   });
 }
@@ -347,6 +360,8 @@ onUnmounted(() => {
   window.removeEventListener("resize", handleResize);
   window.removeEventListener("keydown", handleKeydown);
   if (rafId !== null) cancelAnimationFrame(rafId);
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   unlisten?.();
   terminal?.dispose();
   terminal = null;
@@ -367,7 +382,15 @@ watch(
   },
 );
 
-defineExpose({ clearTerminal });
+function getDimensions() {
+  if (!terminal) return null;
+  return {
+    cols: terminal.cols,
+    rows: terminal.rows,
+  };
+}
+
+defineExpose({ clearTerminal, getDimensions });
 </script>
 
 <template>

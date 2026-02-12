@@ -19,8 +19,8 @@ import {
   StopIcon,
   TrashIcon
 } from "@radix-icons/vue";
-import { invoke } from "@tauri-apps/api/core";
-import { save } from "@tauri-apps/plugin-dialog";
+import { invoke } from "@/lib/api";
+import { save } from "@/lib/dialog";
 import { FolderSyncIcon } from "lucide-vue-next";
 import { computed, ref } from "vue";
 import { useConfigStore } from "../../stores/config";

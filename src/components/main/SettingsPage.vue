@@ -5,16 +5,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Progress } from "@/components/ui/progress";
 import { ArrowLeftIcon } from "@radix-icons/vue";
-import { invoke } from "@tauri-apps/api/core";
-import { type as getOsType } from "@tauri-apps/plugin-os";
+import { DownloadIcon, RefreshCwIcon, RocketIcon } from "lucide-vue-next";
+import { invoke } from "@/lib/api";
+import { type as getOsType } from "@/lib/os";
 import { computed, onMounted, ref } from "vue";
 import { useSettingsStore } from "../../stores/settings";
+import { useUpdatesStore } from "../../stores/updates";
 import { useUiStore } from "../../stores/ui";
 import type { StorageStats } from "../../types";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
 
 const settings = useSettingsStore();
+const updates = useUpdatesStore();
 const ui = useUiStore();
 
 const maxLogLines = ref(settings.maxLogLines);
@@ -26,7 +30,7 @@ const showClearAllDialog = ref(false);
 const savingLogLines = ref(false);
 const savingEditor = ref(false);
 const savingLinuxGpu = ref(false);
-const osType = ref(getOsType());
+const osType = ref<string | null>(null);
 const isLinux = computed(() => osType.value === "linux");
 
 const formattedSize = computed(() => {
@@ -110,11 +114,12 @@ async function updateLinuxGpuOptimization(value: boolean) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   maxLogLines.value = settings.maxLogLines;
   editorValue.value = settings.editor ?? "";
   loadStorageStats();
   detectEditor();
+  osType.value = await getOsType();
 });
 </script>
 
@@ -221,6 +226,128 @@ onMounted(() => {
                 </Button>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      </section>
+
+      <!-- Updates Section -->
+      <section>
+        <h3 class="text-md font-semibold text-foreground mb-4">Updates</h3>
+        <Card>
+          <CardContent class="px-4 space-y-4">
+            <!-- Current Version -->
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-xs text-muted-foreground">Current Version</span>
+                <p class="text-lg font-semibold text-foreground">
+                  v{{ updates.currentVersion || "..." }}
+                </p>
+              </div>
+              <Button
+                variant="secondary"
+                :disabled="updates.checking || updates.downloading"
+                @click="updates.checkForUpdates()"
+              >
+                <RefreshCwIcon
+                  class="h-4 w-4 mr-2"
+                  :class="{ 'animate-spin': updates.checking }"
+                />
+                {{ updates.checking ? "Checking..." : "Check for Updates" }}
+              </Button>
+            </div>
+
+            <!-- Update Available -->
+            <template v-if="updates.available && !updates.downloaded">
+              <Separator />
+              <div class="space-y-3">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-foreground">
+                      Version {{ updates.updateVersion }} available
+                    </p>
+                    <p v-if="updates.releaseDate" class="text-xs text-muted-foreground">
+                      Released {{ new Date(updates.releaseDate).toLocaleDateString() }}
+                    </p>
+                  </div>
+                  <Button
+                    v-if="!updates.downloading"
+                    @click="updates.downloadUpdate()"
+                  >
+                    <DownloadIcon class="h-4 w-4 mr-2" />
+                    {{ updates.autoUpdateSupported ? "Download" : "View Release" }}
+                  </Button>
+                </div>
+
+                <!-- Download Progress -->
+                <div v-if="updates.downloading" class="space-y-2">
+                  <div class="flex items-center justify-between text-xs text-muted-foreground">
+                    <span>Downloading...</span>
+                    <span>{{ Math.round(updates.progress) }}%</span>
+                  </div>
+                  <Progress :model-value="updates.progress" class="h-2" />
+                </div>
+
+                <!-- Release Notes Preview -->
+                <div
+                  v-if="updates.releaseNotes"
+                  class="text-xs text-muted-foreground bg-muted p-3 rounded-md max-h-24 overflow-y-auto"
+                >
+                  <p class="font-medium mb-1">Release Notes:</p>
+                  <p class="whitespace-pre-wrap">{{ updates.releaseNotes }}</p>
+                </div>
+              </div>
+            </template>
+
+            <!-- Update Downloaded -->
+            <template v-else-if="updates.downloaded">
+              <Separator />
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm font-medium text-green-400">
+                    Version {{ updates.updateVersion }} ready to install
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    The app will restart to apply the update.
+                  </p>
+                </div>
+                <Button @click="updates.installUpdate()">
+                  <RocketIcon class="h-4 w-4 mr-2" />
+                  Restart and Update
+                </Button>
+              </div>
+            </template>
+
+            <!-- No Update Available -->
+            <template v-else-if="!updates.checking && !updates.available">
+              <p class="text-xs text-muted-foreground">
+                You're running the latest version.
+              </p>
+            </template>
+
+            <!-- Error -->
+            <template v-if="updates.error">
+              <Separator />
+              <div class="text-xs text-red-400 bg-red-950/50 p-3 rounded-md">
+                <p class="font-medium">Update Error:</p>
+                <p>{{ updates.error }}</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="mt-2 h-6 text-xs"
+                  @click="updates.clearError()"
+                >
+                  Dismiss
+                </Button>
+              </div>
+            </template>
+
+            <!-- macOS Notice -->
+            <template v-if="!updates.autoUpdateSupported && updates.available">
+              <p class="text-xs text-amber-400">
+                Note: Auto-updates are not available on macOS without code signing.
+                Clicking "View Release" will open the download page.
+              </p>
+            </template>
           </CardContent>
         </Card>
       </section>

@@ -11,7 +11,7 @@ import {
   Tooltip,
   Filler,
 } from "chart.js";
-import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import { listen, type UnlistenFn } from "@/lib/api";
 import type { ProcessInfo, MetricPoint } from "../../types";
 
 ChartJS.register(
@@ -140,8 +140,8 @@ function loadInitialData() {
 onMounted(async () => {
   loadInitialData();
 
-  unlisten = await listen<ProcessInfo[]>("process-stats-updated", (event) => {
-    const info = event.payload.find((i) => i.projectId === props.projectId);
+  unlisten = await listen<ProcessInfo[]>("process-stats-updated", (payload) => {
+    const info = payload.find((i) => i.projectId === props.projectId);
     if (!info) return;
 
     const now = new Date().toLocaleTimeString();

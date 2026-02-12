@@ -1,18 +1,20 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke } from "@/lib/api";
 import type { AppSettings } from "../types";
 
 export const useSettingsStore = defineStore("settings", () => {
   const maxLogLines = ref(10_000);
   const editor = ref<string | null>(null);
   const linuxGpuOptimization = ref<boolean | null>(null);
+  const fullscreen = ref<boolean | null>(null);
 
   async function load() {
     const settings = await invoke<AppSettings>("get_settings");
     maxLogLines.value = settings.maxLogLines;
     editor.value = settings.editor;
     linuxGpuOptimization.value = settings.linuxGpuOptimization;
+    fullscreen.value = settings.fullscreen;
   }
 
   async function updateMaxLogLines(value: number) {
@@ -20,6 +22,7 @@ export const useSettingsStore = defineStore("settings", () => {
       maxLogLines: value,
       editor: editor.value,
       linuxGpuOptimization: linuxGpuOptimization.value,
+      fullscreen: fullscreen.value,
     };
     await invoke("update_settings", { settings });
     maxLogLines.value = value;
@@ -30,6 +33,7 @@ export const useSettingsStore = defineStore("settings", () => {
       maxLogLines: maxLogLines.value,
       editor: value,
       linuxGpuOptimization: linuxGpuOptimization.value,
+      fullscreen: fullscreen.value,
     };
     await invoke("update_settings", { settings });
     editor.value = value;
@@ -40,9 +44,26 @@ export const useSettingsStore = defineStore("settings", () => {
       maxLogLines: maxLogLines.value,
       editor: editor.value,
       linuxGpuOptimization: value,
+      fullscreen: fullscreen.value,
     };
     await invoke("update_settings", { settings });
     linuxGpuOptimization.value = value;
+  }
+
+  async function updateFullscreen(value: boolean) {
+    const settings: AppSettings = {
+      maxLogLines: maxLogLines.value,
+      editor: editor.value,
+      linuxGpuOptimization: linuxGpuOptimization.value,
+      fullscreen: value,
+    };
+    await invoke("update_settings", { settings });
+    fullscreen.value = value;
+  }
+
+  async function toggleFullscreen() {
+    const isFullscreen = await invoke<boolean>("window:toggle-fullscreen");
+    fullscreen.value = isFullscreen;
   }
 
   async function detectSystemEditor(): Promise<string> {
@@ -53,10 +74,13 @@ export const useSettingsStore = defineStore("settings", () => {
     maxLogLines,
     editor,
     linuxGpuOptimization,
+    fullscreen,
     load,
     updateMaxLogLines,
     updateEditor,
     updateLinuxGpuOptimization,
+    updateFullscreen,
+    toggleFullscreen,
     detectSystemEditor,
   };
 });

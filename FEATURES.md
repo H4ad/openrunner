@@ -17,6 +17,7 @@ This document tracks the features implemented in Runner UI.
 - **YAML Auto-Sync**: Groups with sync enabled automatically write changes to `openrunner.yaml` file
 - **Rust-Only Data Access**: Frontend reads and writes are routed through Rust commands, avoiding direct SQLite access from the UI
 - **Home Dashboard**: Full-width home view with quick actions, global metrics, storage stats, health summary, recent activity, and group overview cards
+- **Auto-Updater**: Check for updates from GitHub Releases, download and install with user-initiated flow
 
 ## Interactive Terminal Support
 

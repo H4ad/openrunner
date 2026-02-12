@@ -1,24 +1,30 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
-import { listen } from "@tauri-apps/api/event";
+import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { listen, type UnlistenFn } from "@/lib/api";
 import { useConfigStore } from "./stores/config";
 import { useProcessesStore } from "./stores/processes";
 import { useLogsStore } from "./stores/logs";
 import { useSettingsStore } from "./stores/settings";
+import { useUpdatesStore } from "./stores/updates";
 import { useUiStore } from "./stores/ui";
 import Sidebar from "./components/sidebar/Sidebar.vue";
 import MainPanel from "./components/main/MainPanel.vue";
+import { Toaster } from "@/components/ui/sonner";
+import { toast } from "vue-sonner";
 
 const config = useConfigStore();
 const processes = useProcessesStore();
 const logsStore = useLogsStore();
 const settingsStore = useSettingsStore();
+const updatesStore = useUpdatesStore();
 const ui = useUiStore();
 
 const sidebarWidth = ref(256);
 const isResizing = ref(false);
 const isShuttingDown = ref(false);
 const showSidebar = computed(() => ui.viewMode !== "home");
+
+let unlistenAppClosing: UnlistenFn | null = null;
 
 function startResize(e: MouseEvent) {
   e.preventDefault();
@@ -44,11 +50,50 @@ onMounted(async () => {
   await config.init();
   await processes.init();
   await logsStore.init();
+  await updatesStore.initialize();
 
   // Listen for app closing event to show shutdown UI
-  listen("app-closing", () => {
+  unlistenAppClosing = await listen("app-closing", () => {
     isShuttingDown.value = true;
   });
+});
+
+// Watch for update availability and show toast
+watch(
+  () => updatesStore.available,
+  (available) => {
+    if (available && updatesStore.updateVersion) {
+      toast.info(`Update ${updatesStore.updateVersion} available`, {
+        description: "Go to Settings to download and install.",
+        action: {
+          label: "View",
+          onClick: () => ui.showSettings(),
+        },
+        duration: 10000,
+      });
+    }
+  }
+);
+
+// Watch for update downloaded and show toast
+watch(
+  () => updatesStore.downloaded,
+  (downloaded) => {
+    if (downloaded && updatesStore.updateVersion) {
+      toast.success(`Update ${updatesStore.updateVersion} ready`, {
+        description: "Restart to apply the update.",
+        action: {
+          label: "Restart",
+          onClick: () => updatesStore.installUpdate(),
+        },
+        duration: 15000,
+      });
+    }
+  }
+);
+
+onUnmounted(() => {
+  unlistenAppClosing?.();
 });
 </script>
 
@@ -79,5 +124,8 @@ onMounted(async () => {
         <p class="text-sm text-gray-400 mt-2">Please wait while processes are gracefully terminated</p>
       </div>
     </div>
+
+    <!-- Toast notifications -->
+    <Toaster position="bottom-right" :visible-toasts="3" />
   </div>
 </template>
