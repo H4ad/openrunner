@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useConfigStore } from "./config";
 
-export type ViewMode = "project" | "groupMonitor" | "settings" | "sessionDetail";
+export type ViewMode = "home" | "project" | "groupMonitor" | "settings" | "sessionDetail";
 
 export interface ProjectSelection {
   groupId: string;
@@ -13,9 +13,10 @@ export const useUiStore = defineStore("ui", () => {
   const selectedGroupId = ref<string | null>(null);
   const selectedProjectId = ref<string | null>(null);
   const expandedGroups = ref<Set<string>>(new Set());
-  const viewMode = ref<ViewMode>("project");
+  const viewMode = ref<ViewMode>("home");
   const selectedMonitorGroupId = ref<string | null>(null);
   const selectedSessionId = ref<string | null>(null);
+  const selectedSessionGroupId = ref<string | null>(null);
   const showMonitor = ref(false);
   const selectedProjects = ref<ProjectSelection[]>([]);
   const lastSelectedProject = ref<ProjectSelection | null>(null);
@@ -131,7 +132,7 @@ export const useUiStore = defineStore("ui", () => {
   function clearSelection() {
     selectedGroupId.value = null;
     selectedProjectId.value = null;
-    viewMode.value = "project";
+    viewMode.value = "home";
   }
 
   function showGroupMonitor(groupId: string) {
@@ -143,14 +144,20 @@ export const useUiStore = defineStore("ui", () => {
     viewMode.value = "settings";
   }
 
-  function showSessionDetail(sessionId: string) {
+  function showHome() {
+    viewMode.value = "home";
+  }
+
+  function showSessionDetail(sessionId: string, groupId: string) {
     selectedSessionId.value = sessionId;
+    selectedSessionGroupId.value = groupId;
     viewMode.value = "sessionDetail";
   }
 
   function backToProject() {
     viewMode.value = "project";
     selectedSessionId.value = null;
+    selectedSessionGroupId.value = null;
   }
 
   return {
@@ -162,6 +169,7 @@ export const useUiStore = defineStore("ui", () => {
     viewMode,
     selectedMonitorGroupId,
     selectedSessionId,
+    selectedSessionGroupId,
     showMonitor,
     selectedProjects,
     lastSelectedProject,
@@ -178,6 +186,7 @@ export const useUiStore = defineStore("ui", () => {
     getSelectedProjectIds,
     showGroupMonitor,
     showSettings,
+    showHome,
     showSessionDetail,
     backToProject,
   };

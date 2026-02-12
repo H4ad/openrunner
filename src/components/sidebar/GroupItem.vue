@@ -1,15 +1,37 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
-import type { Group, ProjectType } from "../../types";
-import { useUiStore } from "../../stores/ui";
+import { Button } from "@/components/ui/button";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Separator } from "@/components/ui/separator";
+import {
+  ActivityLogIcon,
+  ChevronRightIcon,
+  CodeIcon,
+  DownloadIcon,
+  FileTextIcon,
+  LayersIcon,
+  Pencil1Icon,
+  PlayIcon,
+  PlusIcon,
+  StopIcon,
+  TrashIcon
+} from "@radix-icons/vue";
+import { invoke } from "@tauri-apps/api/core";
+import { save } from "@tauri-apps/plugin-dialog";
+import { FolderSyncIcon } from "lucide-vue-next";
+import { computed, ref } from "vue";
 import { useConfigStore } from "../../stores/config";
 import { useProcessesStore } from "../../stores/processes";
-import ProjectItem from "./ProjectItem.vue";
-import EditDialog from "../shared/EditDialog.vue";
-import ProjectFormDialog from "../shared/ProjectFormDialog.vue";
+import { useUiStore } from "../../stores/ui";
+import type { Group, ProjectType } from "../../types";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
+import EditDialog from "../shared/EditDialog.vue";
 import EnvVarsEditor from "../shared/EnvVarsEditor.vue";
-import { invoke } from "@tauri-apps/api/core";
+import ProjectFormDialog from "../shared/ProjectFormDialog.vue";
+import ProjectItem from "./ProjectItem.vue";
 
 const props = defineProps<{
   group: Group;
@@ -19,13 +41,15 @@ const ui = useUiStore();
 const config = useConfigStore();
 const processesStore = useProcessesStore();
 
-const totalCount = computed(() => props.group.projects.length);
+const serviceProjects = computed(() => props.group.projects.filter(p => p.projectType === "service"));
+const totalCount = computed(() => serviceProjects.value.length);
 const runningCount = computed(
   () =>
-    props.group.projects.filter(
+    serviceProjects.value.filter(
       (p) => processesStore.getStatus(p.id)?.status === "running",
     ).length,
 );
+const hasRunningProjects = computed(() => runningCount.value > 0);
 
 const showContextMenu = ref(false);
 const contextMenuPos = ref({ x: 0, y: 0 });
@@ -37,8 +61,6 @@ const showAddProjectDialog = ref(false);
 const showEditDirectoryDialog = ref(false);
 const showEnvVarsDialog = ref(false);
 const showDeleteSelectedDialog = ref(false);
-
-const isExpanded = () => ui.isGroupExpanded(props.group.id);
 
 // Tab filtering
 const selectedTab = ref<"all" | "service" | "task">("service");
@@ -113,8 +135,8 @@ async function handleUpdateEnvVars(envVars: Record<string, string>) {
   showEnvVarsDialog.value = false;
 }
 
-async function handleAddProject(name: string, command: string, cwd?: string) {
-  const project = await config.createProject(props.group.id, name, command, cwd);
+async function handleAddProject(name: string, command: string, cwd?: string, envVars?: Record<string, string>, projectType?: ProjectType, interactive: boolean = false) {
+  const project = await config.createProject(props.group.id, name, command, cwd, projectType, interactive);
   showAddProjectDialog.value = false;
   ui.selectProject(props.group.id, project.id);
 }
@@ -153,193 +175,165 @@ async function openInTerminal() {
     console.error("Failed to open terminal:", e);
   }
 }
+
+async function exportGroup() {
+  const filePath = await save({
+    filters: [
+      { name: "YAML", extensions: ["yaml", "yml"] },
+      { name: "All Files", extensions: ["*"] },
+    ],
+    defaultPath: `${props.group.name}.yaml`,
+  });
+  if (filePath) {
+    try {
+      await config.exportGroup(props.group.id, filePath);
+    } catch (e) {
+      console.error("Failed to export group:", e);
+    }
+  }
+}
+
+async function toggleSync() {
+  try {
+    await config.toggleGroupSync(props.group.id);
+  } catch (e) {
+    console.error("Failed to toggle group sync:", e);
+  }
+}
 </script>
 
 <template>
   <div class="select-none">
-    <!-- Group Header -->
-    <div
-      class="group flex items-center gap-1 px-2 py-1.5 text-sm cursor-pointer transition-colors"
-      :class="[
-        ui.selectedGroupId === props.group.id
-          ? 'bg-gray-700 text-gray-100'
-          : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-300',
-      ]"
-      @click="ui.toggleGroup(props.group.id)"
-      @contextmenu.prevent="onContextMenu"
-    >
-      <span
-        class="transition-transform duration-150"
-        :class="{ 'rotate-90': isExpanded() }"
-      >
-        <svg
-          class="w-3.5 h-3.5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M9 5l7 7-7 7"
-          />
-        </svg>
-      </span>
-      <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"
-        />
-      </svg>
-      <span class="font-medium flex-1 min-w-0 truncate">{{ props.group.name }}</span>
-      <!-- Monitor button -->
-      <button
-        v-if="totalCount > 0"
-        class="flex-shrink-0 flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] transition-colors"
-        :class="runningCount > 0 ? 'text-green-400 hover:bg-green-900/30' : 'text-gray-500 hover:bg-gray-700/50'"
-        title="Group Monitor"
-        @click.stop="ui.showGroupMonitor(props.group.id)"
-      >
-        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-        <span>{{ runningCount }}/{{ totalCount }}</span>
-      </button>
-      <button
-        v-if="runningCount > 0"
-        class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition-all"
-        @click.stop="stopGroup"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <rect x="6" y="6" width="12" height="12" stroke-width="2" />
-        </svg>
-      </button>
-      <button
-        v-else
-        class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition-all"
-        @click.stop="startGroup"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <polygon points="5 3 19 12 5 21 5 3" stroke-width="2" fill="currentColor" />
-        </svg>
-      </button>
-      <button
-        class="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-600 rounded transition-all"
-        @click.stop="showAddProjectDialog = true"
-      >
-        <svg class="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
-      </button>
-    </div>
-
-    <!-- Projects List -->
-    <div v-if="isExpanded()" class="ml-4 pt-2">
-      <!-- Service/Task Tabs -->
-      <div v-if="props.group.projects.length > 0" class="flex gap-1 mb-2 px-1">
-        <button
-          class="px-2 py-0.5 text-xs rounded transition-colors"
-          :class="selectedTab === 'all' ? 'bg-gray-600 text-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'"
-          @click="selectedTab = 'all'"
-        >
-          All
-        </button>
-        <button
-          class="px-2 py-0.5 text-xs rounded transition-colors"
-          :class="selectedTab === 'service' ? 'bg-gray-600 text-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'"
-          @click="selectedTab = 'service'"
-        >
-          Services
-        </button>
-        <button
-          class="px-2 py-0.5 text-xs rounded transition-colors"
-          :class="selectedTab === 'task' ? 'bg-gray-600 text-gray-100' : 'text-gray-500 hover:text-gray-300 hover:bg-gray-700/50'"
-          @click="selectedTab = 'task'"
-        >
-          Tasks
-        </button>
-      </div>
-      <div class="space-y-0.5">
-        <ProjectItem
-          v-for="project in filteredProjects"
-          :key="project.id"
-          :project="project"
-          :group-id="props.group.id"
-          @contextmenu="onProjectContextMenu"
-        />
-        <div
-          v-if="filteredProjects.length === 0 && props.group.projects.length > 0"
-          class="px-3 py-2 text-xs text-gray-500 italic"
-        >
-          No {{ selectedTab }}s in this group
+    <Collapsible :open="ui.isGroupExpanded(group.id)" @update:open="ui.toggleGroup(group.id)">
+      <!-- Group Header -->
+      <CollapsibleTrigger as-child>
+        <div class="group flex items-center gap-1 px-2 py-1.5 text-sm cursor-pointer transition-colors rounded" :class="[
+          ui.selectedGroupId === props.group.id
+            ? 'bg-accent text-foreground'
+            : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground',
+        ]" @click="ui.selectGroup(props.group.id)" @contextmenu.prevent="onContextMenu">
+          <ChevronRightIcon class="h-3.5 w-3.5 transition-transform duration-150"
+            :class="{ 'rotate-90': ui.isGroupExpanded(group.id) }" />
+          <LayersIcon class="h-4 w-4" />
+          <span class="font-medium flex-1 min-w-0 truncate">{{ props.group.name }}</span>
+          <!-- Sync indicator -->
+          <FolderSyncIcon v-if="props.group.syncEnabled" class="h-3.5 w-3.5 flex-shrink-0 text-green-400 mr-1"
+            title="YAML Sync Enabled" />
+          <!-- Monitor button -->
+          <div v-if="totalCount > 0" variant="outline"
+            class="flex-shrink-0 flex items-center gap-0.5 text-[10px] h-5 px-1 cursor-pointer border rounded-sm"
+            :class="runningCount > 0 ? 'border-green-500/50 text-green-400 hover:bg-green-500/10' : 'border-muted text-muted-foreground hover:bg-accent'"
+            title="Group Monitor" @click.stop="ui.showGroupMonitor(props.group.id)">
+            <ActivityLogIcon class="h-3 w-3" />
+            <span>{{ runningCount }} / {{ totalCount }}</span>
+          </div>
         </div>
-      </div>
-      <button
-        v-if="props.group.projects.length === 0"
-        class="w-full text-left px-3 py-1.5 text-xs text-gray-500 hover:text-gray-300 transition-colors"
-        @click="showAddProjectDialog = true"
-      >
-        + Add a project
-      </button>
-    </div>
+      </CollapsibleTrigger>
+
+      <!-- Projects List -->
+      <CollapsibleContent>
+        <div class="ml-4 pt-2">
+          <!-- Service/Task Tabs -->
+          <div v-if="props.group.projects.length > 0" class="flex gap-1 mb-2 px-1">
+            <Button variant="ghost" size="sm" class="text-xs h-6 px-2 cursor-pointer"
+              :class="selectedTab === 'all' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'"
+              @click="selectedTab = 'all'">
+              All
+            </Button>
+            <Button variant="ghost" size="sm" class="text-xs h-6 px-2 cursor-pointer"
+              :class="selectedTab === 'service' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'"
+              @click="selectedTab = 'service'">
+              Services
+            </Button>
+            <Button variant="ghost" size="sm" class="text-xs h-6 px-2 cursor-pointer"
+              :class="selectedTab === 'task' ? 'bg-accent text-foreground' : 'text-muted-foreground hover:text-foreground'"
+              @click="selectedTab = 'task'">
+              Tasks
+            </Button>
+          </div>
+          <div class="space-y-1">
+            <ProjectItem v-for="project in filteredProjects" :key="project.id" :project="project"
+              :group-id="props.group.id" @contextmenu="onProjectContextMenu" />
+            <div v-if="filteredProjects.length === 0 && props.group.projects.length > 0"
+              class="px-3 py-2 text-xs text-muted-foreground italic">
+              No {{ selectedTab }}s in this group
+            </div>
+          </div>
+          <Button variant="ghost" size="sm"
+            class="w-full justify-start text-xs text-muted-foreground hover:text-foreground mt-1"
+            @click="showAddProjectDialog = true">
+            <PlusIcon class="h-3 w-3 mr-1" />
+            Add a project
+          </Button>
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
 
     <!-- Group Context Menu -->
     <Teleport to="body">
-      <div
-        v-if="showContextMenu"
-        class="fixed z-50 bg-gray-800 border border-gray-600 rounded shadow-lg py-1 min-w-40"
-        :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
-      >
-        <button
-          class="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
-          @click="showAddProjectDialog = true"
-        >
+      <div v-if="showContextMenu" class="fixed z-50 bg-popover border border-border rounded-md shadow-lg py-1 min-w-40"
+        :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }">
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="showAddProjectDialog = true">
+          <PlusIcon class="h-3.5 w-3.5" />
           Add Project
         </button>
-        <button
-          class="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
-          @click="ui.showGroupMonitor(props.group.id)"
-        >
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="ui.showGroupMonitor(props.group.id)">
+          <ActivityLogIcon class="h-3.5 w-3.5" />
           Monitor
         </button>
-        <button
-          class="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
-          @click="showRenameDialog = true"
-        >
+        <button v-if="!hasRunningProjects" class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="startGroup(); showContextMenu = false;">
+          <PlayIcon class="h-3.5 w-3.5" />
+          Run All
+        </button>
+        <button v-else class="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 cursor-pointer"
+          @click="stopGroup(); showContextMenu = false;">
+          <StopIcon class="h-3.5 w-3.5" />
+          Stop All
+        </button>
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="showRenameDialog = true">
+          <Pencil1Icon class="h-3.5 w-3.5" />
           Rename Group
         </button>
-        <button
-          class="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
-          @click="showEditDirectoryDialog = true"
-        >
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="showEditDirectoryDialog = true">
+          <LayersIcon class="h-3.5 w-3.5" />
           Change Directory
         </button>
-        <button
-          class="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
-          @click="openFolder"
-        >
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="openFolder">
+          <FileTextIcon class="h-3.5 w-3.5" />
           Open Folder
         </button>
-        <button
-          class="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
-          @click="openInTerminal"
-        >
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="openInTerminal">
+          <CodeIcon class="h-3.5 w-3.5" />
           Open in Terminal
         </button>
-        <button
-          class="w-full text-left px-3 py-1.5 text-sm text-gray-300 hover:bg-gray-700"
-          @click="showEnvVarsDialog = true"
-        >
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="showEnvVarsDialog = true">
           Environment Variables
         </button>
-        <hr class="border-gray-700 my-1" />
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="toggleSync">
+          <FolderSyncIcon class="h-3.5 w-3.5"
+            :class="!props.group.syncEnabled ? 'text-green-400' : 'text-yellow-400'" />
+          {{ props.group.syncEnabled ? 'Disable YAML Sync' : 'Enable YAML Sync' }}
+        </button>
+        <Separator class="my-1" />
+        <button class="w-full text-left px-3 py-1.5 text-sm text-foreground hover:bg-accent flex items-center gap-2 cursor-pointer"
+          @click="exportGroup">
+          <DownloadIcon class="h-3.5 w-3.5" />
+          Export Group
+        </button>
+        <Separator class="my-1" />
         <button
-          class="w-full text-left px-3 py-1.5 text-sm text-red-400 hover:bg-gray-700"
-          @click="showDeleteDialog = true"
-        >
+          class="w-full text-left px-3 py-1.5 text-sm text-destructive hover:bg-destructive/10 flex items-center gap-2 cursor-pointer"
+          @click="showDeleteDialog = true">
+          <TrashIcon class="h-3.5 w-3.5" />
           Delete Group
         </button>
       </div>
@@ -347,91 +341,51 @@ async function openInTerminal() {
 
     <!-- Project Selection Context Menu -->
     <Teleport to="body">
-      <div
-        v-if="showProjectContextMenu"
-        class="fixed z-50 min-w-[12rem] bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1"
-        :style="{ left: projectContextMenuPos.x + 'px', top: projectContextMenuPos.y + 'px' }"
-      >
-      <div
-        v-if="hasSelectedProjects"
-        class="px-3 py-1.5 text-xs text-gray-500 border-b border-gray-700"
-      >
-        {{ selectedProjectIds.length }} selected
-      </div>
-      <template v-if="hasSelectedProjects">
-        <button
-          class="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors"
-          @click="handleConvertSelectedTo('service')"
-        >
-          Convert to Service
-        </button>
-        <button
-          class="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors"
-          @click="handleConvertSelectedTo('task')"
-        >
-          Convert to Task
-        </button>
-        <div class="border-t border-gray-700 my-1"></div>
-        <button
-          class="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-gray-700 transition-colors"
-          @click="showDeleteSelectedDialog = true"
-        >
-          Delete Selected
-        </button>
-      </template>
-      <template v-else>
-        <div class="px-3 py-1.5 text-sm text-gray-500">
-          Right-click on a project to select multiple with Shift+click
+      <div v-if="showProjectContextMenu"
+        class="fixed z-50 min-w-[12rem] bg-popover border border-border rounded-md shadow-lg py-1"
+        :style="{ left: projectContextMenuPos.x + 'px', top: projectContextMenuPos.y + 'px' }">
+        <div v-if="hasSelectedProjects" class="px-3 py-1.5 text-xs text-muted-foreground border-b border-border">
+          {{ selectedProjectIds.length }} selected
         </div>
-      </template>
+        <template v-if="hasSelectedProjects">
+          <button class="w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-accent transition-colors cursor-pointer"
+            @click="handleConvertSelectedTo('service')">
+            Convert to Service
+          </button>
+          <button class="w-full px-3 py-1.5 text-left text-sm text-foreground hover:bg-accent transition-colors cursor-pointer"
+            @click="handleConvertSelectedTo('task')">
+            Convert to Task
+          </button>
+          <Separator class="my-1" />
+          <button
+            class="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+            @click="showDeleteSelectedDialog = true">
+            Delete Selected
+          </button>
+        </template>
+        <template v-else>
+          <div class="px-3 py-1.5 text-sm text-muted-foreground">
+            Right-click on a project to select multiple with Shift+click
+          </div>
+        </template>
       </div>
     </Teleport>
 
     <!-- Dialogs -->
-    <EditDialog
-      :open="showRenameDialog"
-      title="Rename Group"
-      label="Group name"
-      :value="props.group.name"
-      placeholder="Group name"
-      @confirm="handleRename"
-      @cancel="showRenameDialog = false"
-    />
-    <EditDialog
-      :open="showEditDirectoryDialog"
-      title="Edit Directory"
-      label="Directory path"
-      :value="props.group.directory"
-      placeholder="Directory path"
-      @confirm="handleEditDirectory"
-      @cancel="showEditDirectoryDialog = false"
-    />
-    <ConfirmDialog
-      :open="showDeleteDialog"
-      title="Delete Group"
-      :message="`Delete '${props.group.name}' and all its projects?`"
-      @confirm="handleDelete"
-      @cancel="showDeleteDialog = false"
-    />
-    <ConfirmDialog
-      :open="showDeleteSelectedDialog"
-      title="Delete Selected Projects"
+    <EditDialog :open="showRenameDialog" title="Rename Group" label="Group name" :value="props.group.name"
+      placeholder="Group name" @confirm="handleRename" @cancel="showRenameDialog = false" />
+    <EditDialog :open="showEditDirectoryDialog" title="Edit Directory" label="Directory path"
+      :value="props.group.directory" placeholder="Directory path" @confirm="handleEditDirectory"
+      @cancel="showEditDirectoryDialog = false" />
+    <ConfirmDialog :open="showDeleteDialog" title="Delete Group"
+      :message="`Delete '${props.group.name}' and all its projects?`" @confirm="handleDelete"
+      @cancel="showDeleteDialog = false" />
+    <ConfirmDialog :open="showDeleteSelectedDialog" title="Delete Selected Projects"
       :message="`Delete ${selectedProjectIds.length} selected project${selectedProjectIds.length === 1 ? '' : 's'}?`"
-      @confirm="handleDeleteSelected"
-      @cancel="showDeleteSelectedDialog = false"
-    />
-    <ProjectFormDialog
-      :open="showAddProjectDialog"
-      title="Add Project"
-      @confirm="handleAddProject"
-      @cancel="showAddProjectDialog = false"
-    />
-    <EnvVarsEditor
-      :open="showEnvVarsDialog"
-      title="Group Environment Variables"
-      :env-vars="props.group.envVars"
-      @confirm="handleUpdateEnvVars"
-      @cancel="showEnvVarsDialog = false"
-    />
+      @confirm="handleDeleteSelected" @cancel="showDeleteSelectedDialog = false" />
+    <ProjectFormDialog :open="showAddProjectDialog" title="Add Project" @confirm="handleAddProject"
+      @cancel="showAddProjectDialog = false" />
+    <EnvVarsEditor :open="showEnvVarsDialog" title="Group Environment Variables" :env-vars="props.group.envVars"
+      @confirm="handleUpdateEnvVars" @cancel="showEnvVarsDialog = false" />
   </div>
 </template>

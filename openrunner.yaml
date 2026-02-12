@@ -1,0 +1,19 @@
+version: '1.0'
+name: OpenRunner
+projects:
+- name: Build
+  command: pnpm tauri build
+  type: task
+  autoRestart: false
+  cwd: /home/h4ad/Projects/opensource/runner-ui/./src-tauri
+  interactive: false
+- name: Opencode
+  command: opencode
+  type: service
+  autoRestart: false
+  interactive: false
+- name: htop
+  command: htop
+  type: service
+  autoRestart: false
+  interactive: true

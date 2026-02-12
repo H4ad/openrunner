@@ -2,7 +2,6 @@
 import { computed, ref, watch } from "vue";
 import type { Group, Project, Session, MetricPoint } from "../../types";
 import type { ProjectType } from "../../types";
-import { invoke } from "@tauri-apps/api/core";
 import { useProcessesStore } from "../../stores/processes";
 import { useConfigStore } from "../../stores/config";
 import { useUiStore } from "../../stores/ui";
@@ -15,6 +14,20 @@ import MonitorGraph from "./MonitorGraph.vue";
 import SessionsList from "./SessionsList.vue";
 import ProjectFormDialog from "../shared/ProjectFormDialog.vue";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import {
+  ActivityLogIcon,
+  ClockIcon,
+  ArrowLeftIcon,
+  Pencil1Icon,
+  TrashIcon,
+  PlayIcon,
+  StopIcon,
+  LayersIcon,
+  CodeIcon,
+} from "@radix-icons/vue";
 
 const props = defineProps<{
   project: Project;
@@ -47,6 +60,7 @@ const allRunning = computed(() => groupRunningCount.value === groupTotalCount.va
 const someRunning = computed(() => groupRunningCount.value > 0);
 
 const startStopAllLoading = ref(false);
+
 async function startAllInGroup() {
   startStopAllLoading.value = true;
   try {
@@ -72,7 +86,7 @@ const lastSession = ref<Session | null>(null);
 const lastMetric = ref<MetricPoint | null>(null);
 const lastSessionMetrics = ref<MetricPoint[]>([]);
 
-async function loadLastSessionData() {
+  async function loadLastSessionData() {
   if (status.value === "running") {
     lastSession.value = null;
     lastMetric.value = null;
@@ -80,11 +94,11 @@ async function loadLastSessionData() {
     return;
   }
   try {
-    const session = await sessionsStore.getLastSession(props.project.id);
+    const session = await sessionsStore.getLastSession(props.group.id, props.project.id);
     lastSession.value = session;
     if (session) {
-      lastMetric.value = await sessionsStore.getLastMetric(session.id);
-      lastSessionMetrics.value = await sessionsStore.getSessionMetrics(session.id);
+      lastMetric.value = await sessionsStore.getLastMetric(props.group.id, session.id);
+      lastSessionMetrics.value = await sessionsStore.getSessionMetrics(props.group.id, session.id);
     } else {
       lastMetric.value = null;
       lastSessionMetrics.value = [];
@@ -129,6 +143,7 @@ async function handleEdit(
   cwd?: string,
   envVars?: Record<string, string>,
   projectType?: string,
+  interactive: boolean = false,
 ) {
   await config.updateProject(props.group.id, props.project.id, {
     name,
@@ -136,6 +151,7 @@ async function handleEdit(
     cwd: cwd || null,
     envVars: envVars ?? {},
     projectType: (projectType || 'service') as ProjectType,
+    interactive,
   });
   showEditDialog.value = false;
 }
@@ -153,119 +169,100 @@ async function handleDelete() {
 <template>
   <div class="flex-1 flex flex-col h-full min-h-0">
     <!-- Group Navbar -->
-    <div class="px-4 py-2 border-b border-gray-700/50 bg-gray-800/50 flex items-center justify-between">
+    <div class="px-4 py-2 border-b border-border bg-muted/50 flex items-center justify-between">
       <div class="flex items-center gap-2 min-w-0">
-        <button
-          class="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-          title="Back"
-          @click="ui.clearSelection()"
-        >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <span class="text-xs text-gray-400 truncate">{{ props.group.name }}</span>
-        <span class="text-xs text-gray-500">/</span>
-        <span class="text-xs text-gray-300 font-medium truncate">{{ props.project.name }}</span>
-        <span class="text-[10px] px-1.5 py-0.5 rounded-full ml-1"
-          :class="someRunning ? 'bg-green-900/30 text-green-400' : 'bg-gray-700 text-gray-500'"
+        <Button variant="ghost" size="icon" class="h-7 w-7 shrink-0" title="Back" @click="ui.clearSelection()">
+          <ArrowLeftIcon class="h-3.5 w-3.5" />
+        </Button>
+        <LayersIcon class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span class="text-xs text-muted-foreground truncate">{{ props.group.name }}</span>
+        <span class="text-xs text-muted-foreground">/</span>
+        <CodeIcon class="h-3.5 w-3.5 text-foreground shrink-0" />
+        <span class="text-xs text-foreground font-medium truncate">{{ props.project.name }}</span>
+        <Badge
+          :variant="someRunning ? 'default' : 'secondary'"
+          class="text-[10px] shrink-0"
         >
           {{ groupRunningCount }}/{{ groupTotalCount }}
-        </span>
+        </Badge>
       </div>
-      <div class="flex items-center gap-1.5">
-        <button
-          class="px-2 py-1 text-[11px] rounded transition-colors flex items-center gap-1 disabled:opacity-50"
-          :class="allRunning
-            ? 'bg-red-600/20 text-red-400 hover:bg-red-600/30'
-            : 'bg-green-600/20 text-green-400 hover:bg-green-600/30'"
+      <div class="flex items-center gap-1.5 shrink-0">
+        <Button
+          :variant="allRunning ? 'destructive' : 'default'"
+          size="sm"
+          class="text-[11px] h-7 gap-1"
           :disabled="startStopAllLoading"
-          :title="allRunning ? 'Stop All' : 'Start All'"
           @click="allRunning ? stopAllInGroup() : startAllInGroup()"
         >
-          <svg v-if="allRunning" class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-            <rect x="6" y="6" width="12" height="12" rx="1" />
-          </svg>
-          <svg v-else class="w-3 h-3" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
+          <StopIcon v-if="allRunning" class="h-3 w-3" />
+          <PlayIcon v-else class="h-3 w-3" />
           <span>{{ allRunning ? 'Stop All' : 'Start All' }}</span>
-        </button>
-        <button
-          class="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          class="h-7 w-7"
           title="Group Monitor"
           @click="ui.showGroupMonitor(props.group.id)"
         >
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        </button>
+          <ActivityLogIcon class="h-3.5 w-3.5" />
+        </Button>
       </div>
     </div>
 
     <!-- Header -->
-    <div class="p-4 border-b border-gray-700 space-y-3">
+    <div class="p-4 border-b border-border space-y-3">
       <div class="flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <h2 class="text-lg font-semibold text-gray-100">
+        <div class="flex items-baseline gap-3">
+          <h2 class="text-lg font-semibold text-foreground">
             {{ props.project.name }}
           </h2>
           <StatusBadge :status="status" />
         </div>
         <div class="flex items-center gap-1">
-          <button
-            class="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-            :class="ui.showMonitor ? 'bg-gray-700 text-gray-200' : ''"
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            :class="ui.showMonitor ? 'bg-accent text-accent-foreground' : ''"
             title="Monitor"
             @click="ui.showMonitor = !ui.showMonitor"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-          </button>
-          <button
-            class="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
+            <ActivityLogIcon class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
             title="Sessions"
             @click="showSessions = true"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </button>
-          <button
-            class="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
+            <ClockIcon class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
             title="Edit Project"
             @click="showEditDialog = true"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-              />
-            </svg>
-          </button>
-          <button
-            class="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-red-400 transition-colors"
+            <Pencil1Icon class="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
             title="Delete Project"
             @click="showDeleteDialog = true"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-              />
-            </svg>
-          </button>
+            <TrashIcon class="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
-      <div class="text-xs text-gray-500 font-mono bg-gray-900 px-2 py-1 rounded">
-        <span>{{ props.project.command }}</span>
-        <span v-if="props.project.cwd" class="text-gray-600 ml-2">cwd: {{ props.project.cwd }}</span>
+      <div class="text-xs font-mono bg-muted px-3 py-2 rounded border border-border">
+        <span class="text-foreground">{{ props.project.command }}</span>
+        <span v-if="props.project.cwd" class="text-muted-foreground ml-2">cwd: {{ props.project.cwd }}</span>
       </div>
 
       <ProcessControls
@@ -282,18 +279,16 @@ async function handleDelete() {
       />
 
       <!-- Last session info for stopped/errored projects -->
-      <div v-else-if="lastSession" class="flex flex-wrap items-center gap-3 text-xs text-gray-400">
+      <div v-else-if="lastSession" class="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
         <div class="flex items-center gap-1">
-          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <ClockIcon class="h-3.5 w-3.5" />
           <span>Last run: {{ formatDate(lastSession.startedAt) }}</span>
         </div>
         <div v-if="lastSession.endedAt" class="flex items-center gap-1">
           <span>Duration: {{ formatDuration(lastSession.startedAt, lastSession.endedAt) }}</span>
         </div>
         <div v-if="lastSession.exitStatus" class="flex items-center gap-1">
-          <span :class="lastSession.exitStatus === 'errored' ? 'text-red-400' : 'text-gray-400'">
+          <span :class="lastSession.exitStatus === 'errored' ? 'text-destructive' : 'text-muted-foreground'">
             Exit: {{ lastSession.exitStatus }}
           </span>
         </div>
@@ -316,9 +311,15 @@ async function handleDelete() {
       v-if="showSessions"
       :project-id="props.project.id"
       :project-name="props.project.name"
+      :group-id="props.group.id"
       @close="showSessions = false"
     />
-    <LogPanel v-else :project-id="props.project.id" :group-id="props.group.id" />
+    <LogPanel
+      v-else
+      :project-id="props.project.id"
+      :group-id="props.group.id"
+      :interactive="props.project.interactive"
+    />
 
     <!-- Dialogs -->
     <ProjectFormDialog
@@ -329,6 +330,7 @@ async function handleDelete() {
       :cwd="props.project.cwd ?? undefined"
       :env-vars="props.project.envVars"
       :project-type="props.project.projectType"
+      :interactive="props.project.interactive"
       @confirm="handleEdit"
       @cancel="showEditDialog = false"
     />

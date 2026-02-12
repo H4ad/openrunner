@@ -1,6 +1,17 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { FileTextIcon } from "@radix-icons/vue";
 
 const props = defineProps<{
   open: boolean;
@@ -52,79 +63,73 @@ function submit() {
   if (!inputValue.value.trim()) return;
   emit("confirm", inputValue.value.trim(), secondaryInputValue.value.trim() || undefined);
 }
+
+function handleOpenChange(open: boolean) {
+  if (!open) {
+    emit("cancel");
+  }
+}
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="props.open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="emit('cancel')"
-    >
-      <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-96 border border-gray-700">
-        <h3 class="text-lg font-semibold text-gray-100 mb-4">
-          {{ props.title }}
-        </h3>
-        <form @submit.prevent="submit">
-          <label class="block text-sm text-gray-400 mb-1">{{ props.label }}</label>
-          <div class="flex gap-2 mb-4">
-            <input
+  <Dialog :open="props.open" @update:open="handleOpenChange">
+    <DialogContent class="sm:max-w-md">
+      <DialogHeader>
+        <DialogTitle>{{ props.title }}</DialogTitle>
+      </DialogHeader>
+      <form @submit.prevent="submit" class="space-y-4">
+        <div class="space-y-2">
+          <Label for="primary-input">{{ props.label }}</Label>
+          <div class="flex gap-2">
+            <Input
+              id="primary-input"
               v-model="inputValue"
               :placeholder="props.placeholder"
-              class="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500"
+              class="flex-1"
               autofocus
             />
-            <button
+            <Button
               v-if="props.browseDirectory"
               type="button"
-              class="px-2 py-2 text-xs rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors flex-shrink-0"
+              variant="outline"
+              size="icon"
               title="Browse folder"
               @click="browseFolder('primary')"
             >
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-              </svg>
-            </button>
+              <FileTextIcon class="h-4 w-4" />
+            </Button>
           </div>
-          <template v-if="props.secondaryLabel">
-            <label class="block text-sm text-gray-400 mb-1">{{ props.secondaryLabel }}</label>
-            <div class="flex gap-2 mb-4">
-              <input
-                v-model="secondaryInputValue"
-                :placeholder="props.secondaryPlaceholder"
-                class="flex-1 px-3 py-2 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500"
-              />
-              <button
-                v-if="props.secondaryBrowseDirectory"
-                type="button"
-                class="px-2 py-2 text-xs rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors flex-shrink-0"
-                title="Browse folder"
-                @click="browseFolder('secondary')"
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                </svg>
-              </button>
-            </div>
-          </template>
-          <div class="flex justify-end gap-3">
-            <button
+        </div>
+
+        <div v-if="props.secondaryLabel" class="space-y-2">
+          <Label for="secondary-input">{{ props.secondaryLabel }}</Label>
+          <div class="flex gap-2">
+            <Input
+              id="secondary-input"
+              v-model="secondaryInputValue"
+              :placeholder="props.secondaryPlaceholder"
+              class="flex-1"
+            />
+            <Button
+              v-if="props.secondaryBrowseDirectory"
               type="button"
-              class="px-4 py-2 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
-              @click="emit('cancel')"
+              variant="outline"
+              size="icon"
+              title="Browse folder"
+              @click="browseFolder('secondary')"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors"
-              :disabled="!inputValue.trim()"
-            >
-              Save
-            </button>
+              <FileTextIcon class="h-4 w-4" />
+            </Button>
           </div>
-        </form>
-      </div>
-    </div>
-  </Teleport>
+        </div>
+
+        <DialogFooter class="flex flex-row justify-end gap-2">
+          <Button type="button" variant="secondary" @click="emit('cancel')">
+            Cancel
+          </Button>
+          <Button type="submit" :disabled="!inputValue.trim()"> Save </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
 </template>

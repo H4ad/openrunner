@@ -6,6 +6,7 @@ import { useUiStore } from "../../stores/ui";
 import type { Project } from "../../types";
 import { formatBytes, formatCpu } from "../../utils/formatters";
 import StatusBadge from "../shared/StatusBadge.vue";
+import { cn } from "@/lib/utils";
 
 const props = defineProps<{
   project: Project;
@@ -62,23 +63,22 @@ function handleContextMenu(e: MouseEvent) {
 
 <template>
   <button
-    class="w-full text-left px-3 py-1.5 text-sm rounded flex items-center justify-between transition-colors"
-    :class="[
+    :class="cn(
+      'w-full text-left px-3 py-1.5 text-sm rounded flex items-baseline justify-between transition-colors cursor-pointer',
       isSelected
         ? isActive
-          ? 'bg-gray-600 text-gray-100'
-          : 'bg-gray-700/50 text-gray-100'
-        : 'text-gray-400 hover:bg-gray-700/50 hover:text-gray-300',
-      { 'ring-1 ring-gray-500': isActive },
-    ]"
+          ? 'bg-accent text-foreground'
+          : 'bg-accent/50 text-foreground'
+        : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
+    )"
     @click="handleClick"
     @contextmenu.prevent="handleContextMenu"
   >
     <span class="truncate">{{ props.project.name }}</span>
-    <div class="flex items-center gap-1.5 flex-shrink-0 ml-1">
+    <div class="flex items-baseline gap-1.5 flex-shrink-0 ml-1">
       <span
         v-if="isRunning"
-        class="text-[10px] text-gray-500 font-mono"
+        class="text-[10px] text-muted-foreground font-mono"
       >{{ formattedCpu }} {{ formattedMemory }}</span>
       <StatusBadge :status="status" />
     </div>

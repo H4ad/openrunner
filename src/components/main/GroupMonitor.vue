@@ -8,6 +8,13 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { ProcessInfo, Session, MetricPoint, ProjectType } from "../../types";
 import StatusBadge from "../shared/StatusBadge.vue";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
+import SparklineChart from "../shared/SparklineChart.vue";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Separator } from "@/components/ui/separator";
+import { PlayIcon, StopIcon, ArrowLeftIcon, ActivityLogIcon, DesktopIcon, LayersIcon, FileTextIcon, ClockIcon } from "@radix-icons/vue";
 
 const props = defineProps<{
   groupId: string;
@@ -66,6 +73,7 @@ const showContextMenu = ref(false);
 const contextMenuPos = ref({ x: 0, y: 0 });
 const contextMenuProject = ref<{ id: string; name: string; projectType: ProjectType } | null>(null);
 const showDeleteDialog = ref(false);
+
 async function startAll() {
   if (!group.value) return;
   startStopAllLoading.value = true;
@@ -150,23 +158,6 @@ function getMemory(projectId: string) {
   return formatMemory(bytes);
 }
 
-function getSparklinePath(
-  data: number[],
-  width: number,
-  height: number,
-): string {
-  if (data.length < 2) return "";
-  const max = Math.max(...data, 1);
-  const step = width / (data.length - 1);
-  return data
-    .map((v, i) => {
-      const x = i * step;
-      const y = height - (v / max) * height;
-      return `${i === 0 ? "M" : "L"}${x},${y}`;
-    })
-    .join(" ");
-}
-
 function getProjectSparkline(projectId: string) {
   return sparklineData.value.get(projectId) ?? { cpu: [], mem: [] };
 }
@@ -204,20 +195,22 @@ function getLogLines(projectId: string): string[] {
   return lines.slice(-5);
 }
 
-async function loadProjectData() {
+  async function loadProjectData() {
   const projects = group.value?.projects ?? [];
+  const grp = group.value;
+  if (!grp) return;
   for (const project of projects) {
     try {
       // Load recent logs for all projects
-      const logs = await sessionsStore.getRecentLogs(project.id, 10);
+      const logs = await sessionsStore.getRecentLogs(grp.id, project.id, 10);
       if (logs) recentLogs.value.set(project.id, logs);
 
       // Load last session for non-running projects
       if (getStatus(project.id) !== "running") {
-        const session = await sessionsStore.getLastSession(project.id);
+        const session = await sessionsStore.getLastSession(grp.id, project.id);
         if (session) {
           lastSessions.value.set(project.id, session);
-          const metric = await sessionsStore.getLastMetric(session.id);
+          const metric = await sessionsStore.getLastMetric(grp.id, session.id);
           if (metric) lastMetrics.value.set(project.id, metric);
         }
       }
@@ -238,12 +231,14 @@ onMounted(async () => {
         data = { cpu: [], mem: [] };
         sparklineData.value.set(info.projectId, data);
       }
-      data.cpu.push(info.cpuUsage);
-      data.mem.push(info.memoryUsage / (1024 * 1024));
-      if (data.cpu.length > MAX_SPARKLINE) {
-        data.cpu.shift();
-        data.mem.shift();
+      // Create new arrays to trigger Vue reactivity
+      const newCpu = [...data.cpu, info.cpuUsage];
+      const newMem = [...data.mem, info.memoryUsage / (1024 * 1024)];
+      if (newCpu.length > MAX_SPARKLINE) {
+        newCpu.shift();
+        newMem.shift();
       }
+      sparklineData.value.set(info.projectId, { cpu: newCpu, mem: newMem });
     }
   });
 
@@ -262,401 +257,327 @@ onUnmounted(() => {
 
 <template>
   <div class="flex-1 flex flex-col h-full min-h-0">
-    <div class="p-4 border-b border-gray-700 flex items-center justify-between">
+    <div class="p-4 border-b border-border flex items-center justify-between">
       <div class="flex items-center gap-3">
-        <button
-          class="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-          @click="ui.clearSelection()"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h2 class="text-lg font-semibold text-gray-100">
+        <Button variant="ghost" size="icon" class="h-8 w-8" @click="ui.clearSelection()">
+          <ArrowLeftIcon class="h-4 w-4" />
+        </Button>
+        <h2 class="text-lg font-semibold text-foreground">
           {{ group?.name ?? "Unknown" }}
         </h2>
-        <span class="text-xs px-1.5 py-0.5 rounded-full"
-          :class="groupRunningCount > 0 ? 'bg-green-900/30 text-green-400' : 'bg-gray-700 text-gray-500'"
+        <Badge
+          :variant="groupRunningCount > 0 ? 'default' : 'secondary'"
+          class="text-xs"
         >
           {{ groupRunningCount }}/{{ groupTotalCount }} running
-        </span>
+        </Badge>
       </div>
-      <div class="flex items-center gap-2">
-        <button
-          class="px-3 py-1.5 text-xs rounded transition-colors flex items-center gap-1.5 disabled:opacity-50"
-          :class="allRunning
-            ? 'bg-red-600 text-white hover:bg-red-500'
-            : 'bg-green-600 text-white hover:bg-green-500'"
-          :disabled="startStopAllLoading"
-          @click="allRunning ? stopAll() : startAll()"
-        >
-          <svg v-if="allRunning" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-            <rect x="6" y="6" width="12" height="12" rx="1" />
-          </svg>
-          <svg v-else class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-            <path d="M8 5v14l11-7z" />
-          </svg>
-          {{ allRunning ? 'Stop All' : 'Start All' }}
-        </button>
-      </div>
+      <Button
+        :variant="allRunning ? 'destructive' : 'default'"
+        size="sm"
+        :disabled="startStopAllLoading"
+        @click="allRunning ? stopAll() : startAll()"
+        class="gap-1.5"
+      >
+        <StopIcon v-if="allRunning" class="h-3.5 w-3.5" />
+        <PlayIcon v-else class="h-3.5 w-3.5" />
+        {{ allRunning ? 'Stop All' : 'Start All' }}
+      </Button>
     </div>
 
     <!-- Type tabs -->
-    <div class="px-4 pt-3 border-b border-gray-700">
-      <div class="flex gap-1">
-        <button
-          class="px-4 py-1.5 text-sm rounded-t transition-colors"
-          :class="selectedType === 'service'
-            ? 'bg-gray-700 text-gray-100 border-t border-l border-r border-gray-600'
-            : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'"
-          @click="selectedType = 'service'"
-        >
-          Services
-        </button>
-        <button
-          class="px-4 py-1.5 text-sm rounded-t transition-colors"
-          :class="selectedType === 'task'
-            ? 'bg-gray-700 text-gray-100 border-t border-l border-r border-gray-600'
-            : 'text-gray-500 hover:text-gray-300 hover:bg-gray-800'"
-          @click="selectedType = 'task'"
-        >
-          Tasks
-        </button>
+    <Tabs v-model="selectedType" class="w-full">
+      <div class="px-4 pt-3 border-b border-border">
+        <TabsList>
+          <TabsTrigger value="service">Services</TabsTrigger>
+          <TabsTrigger value="task">Tasks</TabsTrigger>
+        </TabsList>
       </div>
-    </div>
 
-    <div class="flex-1 overflow-y-auto p-4">
-      <div v-if="!group || filteredProjects.length === 0" class="text-center text-gray-500 py-8">
-        {{ !group ? 'No group selected.' : `No ${selectedType}s in this group.` }}
-      </div>
-      <div v-else class="space-y-6">
-        <!-- Running Section -->
-        <div v-if="runningProjects.length > 0">
-          <h3 class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
-            Running ({{ runningProjects.length }})
-          </h3>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <div
-              v-for="project in runningProjects"
-              :key="project.id"
-              class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer"
-              @click="ui.selectProject(props.groupId, project.id)"
-              @contextmenu.prevent="onProjectContextMenu($event, project)"
-            >
-          <!-- Header: name + badges + play/stop -->
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-sm font-medium text-gray-200 truncate">{{
-                project.name
-              }}</span>
-              <span
-                v-if="project.autoRestart"
-                class="text-[10px] px-1 py-0.5 rounded bg-blue-900/30 text-blue-400 flex-shrink-0"
-              >auto</span>
+      <TabsContent value="service" class="m-0">
+        <div class="flex-1 overflow-y-auto p-4">
+          <div v-if="!group || runningProjects.length === 0 && stoppedProjects.length === 0" class="text-center text-muted-foreground py-8">
+            No services in this group.
+          </div>
+          <div v-else class="space-y-6">
+            <!-- Running Section -->
+            <div v-if="runningProjects.length > 0">
+              <h3 class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                Running ({{ runningProjects.length }})
+              </h3>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <Card
+                  v-for="project in runningProjects"
+                  :key="project.id"
+                  class="cursor-pointer hover:border-primary/50 transition-colors"
+                  @click="ui.selectProject(props.groupId, project.id)"
+                  @contextmenu.prevent="onProjectContextMenu($event, project)"
+                >
+                  <CardHeader class="pb-2">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-sm font-medium text-foreground truncate">{{ project.name }}</span>
+                        <Badge v-if="project.autoRestart" variant="outline" class="text-[10px]">auto</Badge>
+                      </div>
+                      <div class="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-7 w-7"
+                          :class="getStatus(project.id) === 'running' ? 'text-destructive hover:text-destructive hover:bg-destructive/10' : 'text-green-400 hover:text-green-400 hover:bg-green-400/10'"
+                          @click.stop="toggleProject(project.id)"
+                        >
+                          <StopIcon v-if="getStatus(project.id) === 'running'" class="h-4 w-4" />
+                          <PlayIcon v-else class="h-4 w-4" />
+                        </Button>
+                        <StatusBadge :status="getStatus(project.id)" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent class="pt-0">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground mb-2">
+                      <span class="flex items-center gap-1">
+                        <DesktopIcon class="h-3 w-3" />
+                        {{ getCpu(project.id).toFixed(1) }}%
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <LayersIcon class="h-3 w-3" />
+                        {{ getMemory(project.id) }}
+                      </span>
+                      <span v-if="getPid(project.id)">PID: {{ getPid(project.id) }}</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 mb-3">
+                      <div class="rounded p-1">
+                        <span class="text-[10px] text-muted-foreground">CPU</span>
+                        <SparklineChart
+                          :data="getProjectSparkline(project.id).cpu"
+                          color="#3b82f6"
+                          fill-color="rgba(59, 130, 246, 0.1)"
+                          :height="24"
+                        />
+                      </div>
+                      <div class="rounded p-1">
+                        <span class="text-[10px] text-muted-foreground">Memory</span>
+                        <SparklineChart
+                          :data="getProjectSparkline(project.id).mem"
+                          color="#10b981"
+                          fill-color="rgba(16, 185, 129, 0.1)"
+                          :height="24"
+                        />
+                      </div>
+                    </div>
+
+                    <div v-if="getLogLines(project.id).length > 0">
+                      <span class="text-[10px] text-muted-foreground">Recent Output</span>
+                      <div class="mt-1 bg-gray-900 border border-border rounded p-2 max-h-24 overflow-hidden">
+                        <div
+                          v-for="(line, i) in getLogLines(project.id)"
+                          :key="i"
+                          class="text-[11px] text-muted-foreground font-mono truncate leading-tight"
+                        >{{ line }}</div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <button
-                class="p-1 rounded transition-colors"
-                :class="getStatus(project.id) === 'running'
-                  ? 'hover:bg-red-900/30 text-red-400 hover:text-red-300'
-                  : 'hover:bg-green-900/30 text-green-400 hover:text-green-300'"
-                :title="getStatus(project.id) === 'running' ? 'Stop' : 'Start'"
-                @click.stop="toggleProject(project.id)"
-              >
-                <svg v-if="getStatus(project.id) === 'running'" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="6" y="6" width="12" height="12" rx="1" />
-                </svg>
-                <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </button>
-              <StatusBadge :status="getStatus(project.id)" />
+
+            <!-- Stopped Section -->
+            <div v-if="stoppedProjects.length > 0">
+              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-muted-foreground"></span>
+                Stopped ({{ stoppedProjects.length }})
+              </h3>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <Card
+                  v-for="project in stoppedProjects"
+                  :key="project.id"
+                  class="cursor-pointer hover:border-primary/50 transition-colors"
+                  @click="ui.selectProject(props.groupId, project.id)"
+                  @contextmenu.prevent="onProjectContextMenu($event, project)"
+                >
+                  <CardHeader class="pb-2">
+                    <div class="flex items-center justify-between">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-sm font-medium text-foreground truncate">{{ project.name }}</span>
+                        <Badge v-if="project.autoRestart" variant="outline" class="text-[10px]">auto</Badge>
+                      </div>
+                      <div class="flex items-center gap-2 flex-shrink-0">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-7 w-7 text-green-400 hover:text-green-400 hover:bg-green-400/10"
+                          @click.stop="toggleProject(project.id)"
+                        >
+                          <PlayIcon class="h-4 w-4" />
+                        </Button>
+                        <StatusBadge :status="getStatus(project.id)" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent class="pt-0">
+                    <div v-if="lastSessions.get(project.id)">
+                      <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground mb-2">
+                        <span class="flex items-center gap-1">
+                          <ClockIcon class="h-3 w-3" />
+                          {{ formatDate(lastSessions.get(project.id)!.startedAt) }}
+                        </span>
+                        <span v-if="lastSessions.get(project.id)!.endedAt">
+                          Duration: {{ formatDuration(lastSessions.get(project.id)!.startedAt, lastSessions.get(project.id)!.endedAt!) }}
+                        </span>
+                        <span
+                          v-if="lastSessions.get(project.id)!.exitStatus"
+                          :class="lastSessions.get(project.id)!.exitStatus === 'errored' ? 'text-destructive' : 'text-muted-foreground'"
+                        >
+                          Exit: {{ lastSessions.get(project.id)!.exitStatus }}
+                        </span>
+                      </div>
+                      <div v-if="lastMetrics.get(project.id)" class="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                        <span class="flex items-center gap-1">
+                          <DesktopIcon class="h-3 w-3" />
+                          Last CPU: {{ lastMetrics.get(project.id)!.cpuUsage.toFixed(1) }}%
+                        </span>
+                        <span class="flex items-center gap-1">
+                          <LayersIcon class="h-3 w-3" />
+                          Last MEM: {{ formatMemory(lastMetrics.get(project.id)!.memoryUsage) }}
+                        </span>
+                      </div>
+
+                      <div v-if="getLogLines(project.id).length > 0">
+                        <span class="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <FileTextIcon class="h-3 w-3" />
+                          Last Output
+                        </span>
+                        <div class="mt-1 bg-gray-900 border border-border rounded p-2 max-h-24 overflow-hidden">
+                          <div
+                            v-for="(line, i) in getLogLines(project.id)"
+                            :key="i"
+                            class="text-[11px] text-muted-foreground font-mono truncate leading-tight"
+                          >{{ line }}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-else class="text-xs text-muted-foreground">No session history</div>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </div>
-
-          <!-- Running project details -->
-          <template v-if="getStatus(project.id) === 'running'">
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400 mb-2">
-              <span>CPU: {{ getCpu(project.id).toFixed(1) }}%</span>
-              <span>MEM: {{ getMemory(project.id) }}</span>
-              <span v-if="getPid(project.id)">PID: {{ getPid(project.id) }}</span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <span class="text-[10px] text-gray-500">CPU</span>
-                <svg
-                  class="w-full h-6"
-                  viewBox="0 0 100 20"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    :d="
-                      getSparklinePath(
-                        getProjectSparkline(project.id).cpu,
-                        100,
-                        20,
-                      )
-                    "
-                    fill="none"
-                    stroke="#3b82f6"
-                    stroke-width="1.5"
-                  />
-                </svg>
-              </div>
-              <div>
-                <span class="text-[10px] text-gray-500">Memory</span>
-                <svg
-                  class="w-full h-6"
-                  viewBox="0 0 100 20"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    :d="
-                      getSparklinePath(
-                        getProjectSparkline(project.id).mem,
-                        100,
-                        20,
-                      )
-                    "
-                    fill="none"
-                    stroke="#10b981"
-                    stroke-width="1.5"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <!-- Recent output for running -->
-            <div v-if="getLogLines(project.id).length > 0">
-              <span class="text-[10px] text-gray-500">Recent Output</span>
-              <div class="mt-1 bg-gray-900 rounded p-2 max-h-24 overflow-hidden">
-                <div
-                  v-for="(line, i) in getLogLines(project.id)"
-                  :key="i"
-                  class="text-[11px] text-gray-400 font-mono truncate leading-tight"
-                >{{ line }}</div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Stopped/errored project details -->
-          <template v-else>
-            <div v-if="lastSessions.get(project.id)">
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-2">
-                <span>{{ formatDate(lastSessions.get(project.id)!.startedAt) }}</span>
-                <span v-if="lastSessions.get(project.id)!.endedAt">
-                  Duration: {{ formatDuration(lastSessions.get(project.id)!.startedAt, lastSessions.get(project.id)!.endedAt!) }}
-                </span>
-                <span
-                  v-if="lastSessions.get(project.id)!.exitStatus"
-                  :class="lastSessions.get(project.id)!.exitStatus === 'errored' ? 'text-red-400' : 'text-gray-500'"
-                >
-                  Exit: {{ lastSessions.get(project.id)!.exitStatus }}
-                </span>
-              </div>
-              <div v-if="lastMetrics.get(project.id)" class="flex items-center gap-3 text-xs text-gray-500 mb-2">
-                <span>Last CPU: {{ lastMetrics.get(project.id)!.cpuUsage.toFixed(1) }}%</span>
-                <span>Last MEM: {{ formatMemory(lastMetrics.get(project.id)!.memoryUsage) }}</span>
-              </div>
-
-              <!-- Last output for stopped -->
-              <div v-if="getLogLines(project.id).length > 0">
-                <span class="text-[10px] text-gray-500">Last Output</span>
-                <div class="mt-1 bg-gray-900 rounded p-2 max-h-24 overflow-hidden">
-                  <div
-                    v-for="(line, i) in getLogLines(project.id)"
-                    :key="i"
-                    class="text-[11px] text-gray-500 font-mono truncate leading-tight"
-                  >{{ line }}</div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="text-xs text-gray-600">No session history</div>
-          </template>
         </div>
+      </TabsContent>
+
+      <TabsContent value="task" class="m-0">
+        <div class="flex-1 overflow-y-auto p-4">
+          <div v-if="!group || runningProjects.length === 0 && stoppedProjects.length === 0" class="text-center text-muted-foreground py-8">
+            No tasks in this group.
+          </div>
+          <div v-else class="space-y-6">
+            <!-- Running Tasks -->
+            <div v-if="runningProjects.length > 0">
+              <h3 class="text-xs font-semibold text-green-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-green-400 animate-pulse"></span>
+                Running ({{ runningProjects.length }})
+              </h3>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <Card
+                  v-for="project in runningProjects"
+                  :key="project.id"
+                  class="cursor-pointer hover:border-primary/50 transition-colors"
+                  @click="ui.selectProject(props.groupId, project.id)"
+                >
+                  <CardHeader class="pb-2">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-medium text-foreground truncate">{{ project.name }}</span>
+                      <div class="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          class="h-7 w-7 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          @click.stop="toggleProject(project.id)"
+                        >
+                          <StopIcon class="h-4 w-4" />
+                        </Button>
+                        <StatusBadge :status="getStatus(project.id)" />
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent class="pt-0">
+                    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                      <span class="flex items-center gap-1">
+                        <DesktopIcon class="h-3 w-3" />
+                        {{ getCpu(project.id).toFixed(1) }}%
+                      </span>
+                      <span class="flex items-center gap-1">
+                        <LayersIcon class="h-3 w-3" />
+                        {{ getMemory(project.id) }}
+                      </span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
+            <!-- Completed Tasks -->
+            <div v-if="stoppedProjects.length > 0">
+              <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-muted-foreground"></span>
+                Completed ({{ stoppedProjects.length }})
+              </h3>
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <Card
+                  v-for="project in stoppedProjects"
+                  :key="project.id"
+                  class="cursor-pointer hover:border-primary/50 transition-colors"
+                  @click="ui.selectProject(props.groupId, project.id)"
+                >
+                  <CardHeader class="pb-2">
+                    <div class="flex items-center justify-between">
+                      <span class="text-sm font-medium text-foreground truncate">{{ project.name }}</span>
+                      <StatusBadge :status="getStatus(project.id)" />
+                    </div>
+                  </CardHeader>
+                  <CardContent class="pt-0">
+                    <div v-if="lastSessions.get(project.id)" class="text-xs text-muted-foreground">
+                      <span>{{ formatDate(lastSessions.get(project.id)!.startedAt) }}</span>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
           </div>
         </div>
-
-        <!-- Stopped Section -->
-        <div v-if="stoppedProjects.length > 0">
-          <h3 class="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 flex items-center gap-2">
-            <span class="w-2 h-2 rounded-full bg-gray-500"></span>
-            Stopped ({{ stoppedProjects.length }})
-          </h3>
-          <div class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <div
-              v-for="project in stoppedProjects"
-              :key="project.id"
-              class="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer"
-              @click="ui.selectProject(props.groupId, project.id)"
-              @contextmenu.prevent="onProjectContextMenu($event, project)"
-            >
-          <!-- Header: name + badges + play/stop -->
-          <div class="flex items-center justify-between mb-3">
-            <div class="flex items-center gap-2 min-w-0">
-              <span class="text-sm font-medium text-gray-200 truncate">{{
-                project.name
-              }}</span>
-              <span
-                v-if="project.autoRestart"
-                class="text-[10px] px-1 py-0.5 rounded bg-blue-900/30 text-blue-400 flex-shrink-0"
-              >auto</span>
-            </div>
-            <div class="flex items-center gap-2 flex-shrink-0">
-              <button
-                class="p-1 rounded transition-colors"
-                :class="getStatus(project.id) === 'running'
-                  ? 'hover:bg-red-900/30 text-red-400 hover:text-red-300'
-                  : 'hover:bg-green-900/30 text-green-400 hover:text-green-300'"
-                :title="getStatus(project.id) === 'running' ? 'Stop' : 'Start'"
-                @click.stop="toggleProject(project.id)"
-              >
-                <svg v-if="getStatus(project.id) === 'running'" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <rect x="6" y="6" width="12" height="12" rx="1" />
-                </svg>
-                <svg v-else class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M8 5v14l11-7z" />
-                </svg>
-              </button>
-              <StatusBadge :status="getStatus(project.id)" />
-            </div>
-          </div>
-
-          <!-- Running project details -->
-          <template v-if="getStatus(project.id) === 'running'">
-            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-400 mb-2">
-              <span>CPU: {{ getCpu(project.id).toFixed(1) }}%</span>
-              <span>MEM: {{ getMemory(project.id) }}</span>
-              <span v-if="getPid(project.id)">PID: {{ getPid(project.id) }}</span>
-            </div>
-
-            <div class="grid grid-cols-2 gap-2 mb-3">
-              <div>
-                <span class="text-[10px] text-gray-500">CPU</span>
-                <svg
-                  class="w-full h-6"
-                  viewBox="0 0 100 20"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    :d="
-                      getSparklinePath(
-                        getProjectSparkline(project.id).cpu,
-                        100,
-                        20,
-                      )
-                    "
-                    fill="none"
-                    stroke="#3b82f6"
-                    stroke-width="1.5"
-                  />
-                </svg>
-              </div>
-              <div>
-                <span class="text-[10px] text-gray-500">Memory</span>
-                <svg
-                  class="w-full h-6"
-                  viewBox="0 0 100 20"
-                  preserveAspectRatio="none"
-                >
-                  <path
-                    :d="
-                      getSparklinePath(
-                        getProjectSparkline(project.id).mem,
-                        100,
-                        20,
-                      )
-                    "
-                    fill="none"
-                    stroke="#10b981"
-                    stroke-width="1.5"
-                  />
-                </svg>
-              </div>
-            </div>
-
-            <!-- Recent output for running -->
-            <div v-if="getLogLines(project.id).length > 0">
-              <span class="text-[10px] text-gray-500">Recent Output</span>
-              <div class="mt-1 bg-gray-900 rounded p-2 max-h-24 overflow-hidden">
-                <div
-                  v-for="(line, i) in getLogLines(project.id)"
-                  :key="i"
-                  class="text-[11px] text-gray-400 font-mono truncate leading-tight"
-                >{{ line }}</div>
-              </div>
-            </div>
-          </template>
-
-          <!-- Stopped/errored project details -->
-          <template v-else>
-            <div v-if="lastSessions.get(project.id)">
-              <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mb-2">
-                <span>{{ formatDate(lastSessions.get(project.id)!.startedAt) }}</span>
-                <span v-if="lastSessions.get(project.id)!.endedAt">
-                  Duration: {{ formatDuration(lastSessions.get(project.id)!.startedAt, lastSessions.get(project.id)!.endedAt!) }}
-                </span>
-                <span
-                  v-if="lastSessions.get(project.id)!.exitStatus"
-                  :class="lastSessions.get(project.id)!.exitStatus === 'errored' ? 'text-red-400' : 'text-gray-500'"
-                >
-                  Exit: {{ lastSessions.get(project.id)!.exitStatus }}
-                </span>
-              </div>
-              <div v-if="lastMetrics.get(project.id)" class="flex items-center gap-3 text-xs text-gray-500 mb-2">
-                <span>Last CPU: {{ lastMetrics.get(project.id)!.cpuUsage.toFixed(1) }}%</span>
-                <span>Last MEM: {{ formatMemory(lastMetrics.get(project.id)!.memoryUsage) }}</span>
-              </div>
-
-              <!-- Last output for stopped -->
-              <div v-if="getLogLines(project.id).length > 0">
-                <span class="text-[10px] text-gray-500">Last Output</span>
-                <div class="mt-1 bg-gray-900 rounded p-2 max-h-24 overflow-hidden">
-                  <div
-                    v-for="(line, i) in getLogLines(project.id)"
-                    :key="i"
-                    class="text-[11px] text-gray-500 font-mono truncate leading-tight"
-                  >{{ line }}</div>
-                </div>
-              </div>
-            </div>
-            <div v-else class="text-xs text-gray-600">No session history</div>
-          </template>
-        </div>
-          </div>
-        </div>
-      </div>
-    </div>
+      </TabsContent>
+    </Tabs>
 
     <!-- Project Context Menu -->
     <Teleport to="body">
       <div
         v-if="showContextMenu && contextMenuProject"
-        class="fixed z-50 min-w-[12rem] bg-gray-800 border border-gray-700 rounded-lg shadow-xl py-1"
+        class="fixed z-50 min-w-[12rem] bg-popover border border-border rounded-lg shadow-lg py-1"
         :style="{ left: contextMenuPos.x + 'px', top: contextMenuPos.y + 'px' }"
       >
-        <div class="px-3 py-1.5 text-xs text-gray-500 border-b border-gray-700">
+        <div class="px-3 py-1.5 text-xs text-muted-foreground border-b border-border">
           {{ contextMenuProject.name }}
         </div>
         <button
           v-if="contextMenuProject.projectType !== 'service'"
-          class="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+          class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent transition-colors cursor-pointer"
           @click="handleConvertProject('service')"
         >
           Convert to Service
         </button>
         <button
           v-if="contextMenuProject.projectType !== 'task'"
-          class="w-full px-3 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700 transition-colors"
+          class="w-full px-3 py-1.5 text-left text-sm hover:bg-accent transition-colors cursor-pointer"
           @click="handleConvertProject('task')"
         >
           Convert to Task
         </button>
-        <div class="border-t border-gray-700 my-1"></div>
+        <Separator />
         <button
-          class="w-full px-3 py-1.5 text-left text-sm text-red-400 hover:bg-gray-700 transition-colors"
+          class="w-full px-3 py-1.5 text-left text-sm text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
           @click="showDeleteDialog = true"
         >
           Delete Project

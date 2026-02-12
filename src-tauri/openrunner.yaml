@@ -1,0 +1,8 @@
+version: '1.0'
+name: T
+projects:
+- name: Test
+  command: htop
+  type: service
+  autoRestart: true
+  interactive: true

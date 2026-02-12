@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
+import { computed, onMounted, ref } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { useConfigStore } from "./stores/config";
 import { useProcessesStore } from "./stores/processes";
 import { useLogsStore } from "./stores/logs";
 import { useSettingsStore } from "./stores/settings";
+import { useUiStore } from "./stores/ui";
 import Sidebar from "./components/sidebar/Sidebar.vue";
 import MainPanel from "./components/main/MainPanel.vue";
 
@@ -12,10 +13,12 @@ const config = useConfigStore();
 const processes = useProcessesStore();
 const logsStore = useLogsStore();
 const settingsStore = useSettingsStore();
+const ui = useUiStore();
 
 const sidebarWidth = ref(256);
 const isResizing = ref(false);
 const isShuttingDown = ref(false);
+const showSidebar = computed(() => ui.viewMode !== "home");
 
 function startResize(e: MouseEvent) {
   e.preventDefault();
@@ -54,13 +57,16 @@ onMounted(async () => {
     class="h-screen w-screen bg-gray-900 text-gray-100 flex overflow-hidden relative"
     :class="isResizing ? 'select-none' : ''"
   >
-    <Sidebar :style="{ width: sidebarWidth + 'px', minWidth: sidebarWidth + 'px' }" />
-    <div
-      class="w-1 cursor-col-resize bg-gray-700 hover:bg-blue-500 transition-colors flex-shrink-0"
-      :class="isResizing ? 'bg-blue-500' : ''"
-      @mousedown="startResize"
-    />
-    <MainPanel />
+    <template v-if="showSidebar">
+      <Sidebar :style="{ width: sidebarWidth + 'px', minWidth: sidebarWidth + 'px' }" />
+      <div
+        class="w-1 cursor-col-resize bg-gray-700 hover:bg-blue-500 transition-colors flex-shrink-0"
+        :class="isResizing ? 'bg-blue-500' : ''"
+        @mousedown="startResize"
+      />
+      <MainPanel />
+    </template>
+    <MainPanel v-else />
 
     <!-- Shutdown overlay -->
     <div

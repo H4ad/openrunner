@@ -8,6 +8,7 @@ export interface Project {
   envVars: Record<string, string>;
   cwd: string | null;
   projectType: ProjectType;
+  interactive: boolean;
 }
 
 export interface Group {
@@ -16,6 +17,8 @@ export interface Group {
   directory: string;
   projects: Project[];
   envVars: Record<string, string>;
+  syncFile?: string;
+  syncEnabled: boolean;
 }
 
 export type ProcessStatus = "running" | "stopping" | "stopped" | "errored";
@@ -40,6 +43,7 @@ export interface LogMessage {
 export interface AppSettings {
   maxLogLines: number;
   editor: string | null;
+  linuxGpuOptimization: boolean | null;
 }
 
 export interface Session {

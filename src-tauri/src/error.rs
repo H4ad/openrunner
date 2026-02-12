@@ -23,11 +23,20 @@ pub enum Error {
     #[error("IO error: {0}")]
     IoError(#[from] std::io::Error),
 
+    #[error("PTY error: {0}")]
+    PtyError(String),
+
     #[error("Database error: {0}")]
     DatabaseError(String),
 
+    #[error("SQLite error: {0}")]
+    SqliteError(#[from] rusqlite::Error),
+
     #[error("File not found: {0}")]
     FileNotFound(String),
+
+    #[error("YAML config error: {0}")]
+    YamlConfig(String),
 }
 
 impl Serialize for Error {

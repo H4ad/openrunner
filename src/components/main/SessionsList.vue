@@ -5,10 +5,14 @@ import { useUiStore } from "../../stores/ui";
 import type { SessionWithStats } from "../../types";
 import { formatBytes } from "../../utils/formatters";
 import ConfirmDialog from "../shared/ConfirmDialog.vue";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeftIcon, TrashIcon } from "@radix-icons/vue";
 
 const props = defineProps<{
   projectId: string;
   projectName: string;
+  groupId: string;
 }>();
 
 const emit = defineEmits<{
@@ -20,7 +24,7 @@ const ui = useUiStore();
 const deleteSessionId = ref<string | null>(null);
 
 onMounted(() => {
-  sessions.loadSessionsWithStats(props.projectId);
+  sessions.loadSessionsWithStats(props.groupId, props.projectId);
 });
 
 function formatDate(ts: number): string {
@@ -40,10 +44,10 @@ function formatDuration(session: SessionWithStats): string {
   return `${hours}h ${mins}m`;
 }
 
-function statusColor(session: SessionWithStats): string {
-  if (!session.endedAt) return "text-green-400";
-  if (session.exitStatus === "errored") return "text-red-400";
-  return "text-gray-400";
+function statusVariant(session: SessionWithStats): "default" | "destructive" | "secondary" {
+  if (!session.endedAt) return "default";
+  if (session.exitStatus === "errored") return "destructive";
+  return "secondary";
 }
 
 function statusLabel(session: SessionWithStats): string {
@@ -53,76 +57,71 @@ function statusLabel(session: SessionWithStats): string {
 }
 
 function viewSession(sessionId: string) {
-  ui.showSessionDetail(sessionId);
+  ui.showSessionDetail(sessionId, props.groupId);
 }
 
 async function handleDeleteSession() {
   if (deleteSessionId.value) {
-    await sessions.deleteSession(deleteSessionId.value);
+    await sessions.deleteSession(props.groupId, deleteSessionId.value);
     deleteSessionId.value = null;
-    sessions.loadSessionsWithStats(props.projectId);
+    sessions.loadSessionsWithStats(props.groupId, props.projectId);
   }
 }
 </script>
 
 <template>
   <div class="flex-1 flex flex-col h-full min-h-0">
-    <div class="p-4 border-b border-gray-700 flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <button
-          class="p-1 rounded hover:bg-gray-700 text-gray-400 hover:text-gray-200 transition-colors"
-          @click="emit('close')"
-        >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-          </svg>
-        </button>
-        <h2 class="text-lg font-semibold text-gray-100">
-          Sessions - {{ props.projectName }}
-        </h2>
-      </div>
+    <div class="p-4 border-b border-border flex items-center gap-3">
+      <Button variant="ghost" size="icon" class="h-8 w-8" @click="emit('close')">
+        <ArrowLeftIcon class="h-4 w-4" />
+      </Button>
+      <h2 class="text-lg font-semibold text-foreground">
+        Sessions - {{ props.projectName }}
+      </h2>
     </div>
 
     <div class="flex-1 overflow-y-auto p-4">
-      <div v-if="sessions.loading" class="text-center text-gray-500 py-8">
+      <div v-if="sessions.loading" class="text-center text-muted-foreground py-8">
         Loading sessions...
       </div>
-      <div v-else-if="sessions.sessionsWithStats.length === 0" class="text-center text-gray-500 py-8">
+      <div v-else-if="sessions.sessionsWithStats.length === 0" class="text-center text-muted-foreground py-8">
         No sessions recorded yet. Start the process to create a session.
       </div>
       <div v-else class="space-y-2">
-        <div
+        <Card
           v-for="session in sessions.sessionsWithStats"
           :key="session.id"
-          class="bg-gray-800 rounded-lg p-3 border border-gray-700 hover:border-gray-600 transition-colors cursor-pointer"
+          class="cursor-pointer hover:border-primary/50 transition-colors"
           @click="viewSession(session.id)"
         >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="text-sm text-gray-300">{{ formatDate(session.startedAt) }}</span>
-              <span :class="statusColor(session)" class="text-xs font-medium">
-                {{ statusLabel(session) }}
-              </span>
+          <CardContent class="p-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="text-sm text-foreground">{{ formatDate(session.startedAt) }}</span>
+                <span :class="statusVariant(session) === 'default' ? 'text-green-400' : statusVariant(session) === 'destructive' ? 'text-destructive' : 'text-muted-foreground'" class="text-xs font-medium">
+                  {{ statusLabel(session) }}
+                </span>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="text-xs text-muted-foreground">{{ formatDuration(session) }}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  class="h-6 w-6 text-muted-foreground hover:text-destructive"
+                  title="Delete session"
+                  @click.stop="deleteSessionId = session.id"
+                >
+                  <TrashIcon class="h-3.5 w-3.5" />
+                </Button>
+              </div>
             </div>
-            <div class="flex items-center gap-3">
-              <span class="text-xs text-gray-500">{{ formatDuration(session) }}</span>
-              <button
-                class="p-1 text-gray-500 hover:text-red-400 transition-colors"
-                title="Delete session"
-                @click.stop="deleteSessionId = session.id"
-              >
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
+            <div class="flex items-center gap-3 mt-1.5 text-[11px] text-muted-foreground">
+              <span>{{ session.logCount }} logs</span>
+              <span>{{ formatBytes(session.logSize) }}</span>
+              <span>{{ session.metricCount }} metrics</span>
             </div>
-          </div>
-          <div class="flex items-center gap-3 mt-1.5 text-[11px] text-gray-500">
-            <span>{{ session.logCount }} logs</span>
-            <span>{{ formatBytes(session.logSize) }}</span>
-            <span>{{ session.metricCount }} metrics</span>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     </div>
 

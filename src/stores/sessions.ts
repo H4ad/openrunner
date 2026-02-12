@@ -8,18 +8,16 @@ export const useSessionsStore = defineStore("sessions", () => {
   const sessionsWithStats = ref<SessionWithStats[]>([]);
   const loading = ref(false);
 
-  async function loadSessions(projectId: string) {
+  async function loadSessions(_groupId: string, projectId: string) {
     loading.value = true;
     try {
-      sessions.value = await invoke<Session[]>("get_project_sessions", {
-        projectId,
-      });
+      sessions.value = await invoke<Session[]>("get_project_sessions", { projectId });
     } finally {
       loading.value = false;
     }
   }
 
-  async function loadSessionsWithStats(projectId: string) {
+  async function loadSessionsWithStats(_groupId: string, projectId: string) {
     loading.value = true;
     try {
       sessionsWithStats.value = await invoke<SessionWithStats[]>(
@@ -31,28 +29,28 @@ export const useSessionsStore = defineStore("sessions", () => {
     }
   }
 
-  async function getSessionLogs(sessionId: string): Promise<string> {
+  async function getSessionLogs(_groupId: string, sessionId: string): Promise<string> {
     return await invoke<string>("get_session_logs", { sessionId });
   }
 
-  async function getSessionMetrics(sessionId: string): Promise<MetricPoint[]> {
+  async function getSessionMetrics(_groupId: string, sessionId: string): Promise<MetricPoint[]> {
     return await invoke<MetricPoint[]>("get_session_metrics", { sessionId });
   }
 
-  async function deleteSession(sessionId: string) {
-    await invoke("delete_session", { sessionId });
+  async function deleteSession(groupId: string, sessionId: string) {
+    await invoke("delete_session", { groupId, sessionId });
     sessions.value = sessions.value.filter((s) => s.id !== sessionId);
   }
 
   async function getLastSession(
+    _groupId: string,
     projectId: string,
   ): Promise<Session | null> {
-    return await invoke<Session | null>("get_last_completed_session", {
-      projectId,
-    });
+    return await invoke<Session | null>("get_last_completed_session", { projectId });
   }
 
   async function getRecentLogs(
+    _groupId: string,
     projectId: string,
     limit: number,
   ): Promise<string> {
@@ -60,6 +58,7 @@ export const useSessionsStore = defineStore("sessions", () => {
   }
 
   async function getLastMetric(
+    _groupId: string,
     sessionId: string,
   ): Promise<MetricPoint | null> {
     return await invoke<MetricPoint | null>("get_last_metric", { sessionId });

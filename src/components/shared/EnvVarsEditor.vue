@@ -1,5 +1,17 @@
 <script setup lang="ts">
 import { ref, watch } from "vue";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Cross1Icon, PlusIcon } from "@radix-icons/vue";
 
 const props = defineProps<{
   open: boolean;
@@ -48,77 +60,66 @@ function submit() {
   }
   emit("confirm", result);
 }
+
+function handleOpenChange(open: boolean) {
+  if (!open) {
+    emit("cancel");
+  }
+}
 </script>
 
 <template>
-  <Teleport to="body">
-    <div
-      v-if="props.open"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
-      @click.self="emit('cancel')"
-    >
-      <div class="bg-gray-800 rounded-lg shadow-xl p-6 w-[32rem] border border-gray-700">
-        <h3 class="text-lg font-semibold text-gray-100 mb-4">
-          {{ props.title }}
-        </h3>
-        <form @submit.prevent="submit">
-          <div class="space-y-2 mb-4 max-h-64 overflow-y-auto">
-            <div class="flex items-center gap-2 text-xs text-gray-500 px-1">
-              <span class="flex-1">Key</span>
-              <span class="flex-1">Value</span>
-              <span class="w-7"></span>
-            </div>
-            <div
-              v-for="(row, index) in rows"
-              :key="index"
-              class="flex items-center gap-2"
-            >
-              <input
+  <Dialog :open="props.open" @update:open="handleOpenChange">
+    <DialogContent class="sm:max-w-lg">
+      <DialogHeader>
+        <DialogTitle>{{ props.title }}</DialogTitle>
+      </DialogHeader>
+      <form @submit.prevent="submit" class="space-y-4">
+        <div class="grid grid-cols-[1fr_1fr_auto] gap-2 text-xs text-muted-foreground px-1">
+          <Label>Key</Label>
+          <Label>Value</Label>
+          <span></span>
+        </div>
+
+        <ScrollArea class="h-64">
+          <div class="space-y-2 pr-4">
+            <div v-for="(row, index) in rows" :key="index" class="grid grid-cols-[1fr_1fr_auto] gap-2">
+              <Input
                 v-model="row.key"
                 placeholder="ENV_NAME"
-                class="flex-1 px-2 py-1.5 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500 font-mono"
+                class="font-mono text-sm"
               />
-              <input
+              <Input
                 v-model="row.value"
                 placeholder="value"
-                class="flex-1 px-2 py-1.5 bg-gray-900 border border-gray-600 rounded text-gray-100 text-sm focus:outline-none focus:border-blue-500 font-mono"
+                class="font-mono text-sm"
               />
-              <button
+              <Button
                 type="button"
-                class="p-1 text-gray-500 hover:text-red-400 transition-colors flex-shrink-0"
+                variant="ghost"
+                size="icon"
+                class="shrink-0 text-muted-foreground hover:text-destructive"
                 title="Remove"
                 @click="removeRow(index)"
               >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+                <Cross1Icon class="h-4 w-4" />
+              </Button>
             </div>
           </div>
-          <button
-            type="button"
-            class="text-xs text-blue-400 hover:text-blue-300 transition-colors mb-4"
-            @click="addRow"
-          >
-            + Add Variable
-          </button>
-          <div class="flex justify-end gap-3">
-            <button
-              type="button"
-              class="px-4 py-2 text-sm rounded bg-gray-700 text-gray-300 hover:bg-gray-600 transition-colors"
-              @click="emit('cancel')"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              class="px-4 py-2 text-sm rounded bg-blue-600 text-white hover:bg-blue-500 transition-colors"
-            >
-              Save
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-  </Teleport>
+        </ScrollArea>
+
+        <Button type="button" variant="ghost" size="sm" class="text-primary" @click="addRow">
+          <PlusIcon class="h-4 w-4 mr-1" />
+          Add Variable
+        </Button>
+
+        <DialogFooter class="flex flex-row justify-end gap-2">
+          <Button type="button" variant="secondary" @click="emit('cancel')">
+            Cancel
+          </Button>
+          <Button type="submit">Save</Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
+  </Dialog>
 </template>
