@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/H4ad/openrunner/compare/v0.2.0...v0.2.1) (2026-02-12)
+
+
+### Bug Fixes
+
+* **release:** fix issue with auto-update ([4b4b61a](https://github.com/H4ad/openrunner/commit/4b4b61a64c8270a45363e7fa23394ddcd1c4acac))
+
 ## [0.2.0](https://github.com/H4ad/openrunner/compare/v0.1.0...v0.2.0) (2026-02-12)
 
 
