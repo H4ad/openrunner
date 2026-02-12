@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.8](https://github.com/H4ad/openrunner/compare/v0.2.7...v0.2.8) (2026-02-12)
+
+
+### Features
+
+* **system-tray:** add support to not close after click to exit (go to tray) ([ae35b2a](https://github.com/H4ad/openrunner/commit/ae35b2a7afdfe7817a758c20c7bb7ba5b0061daf))
+
+
+### Bug Fixes
+
+* **cli:** try fix the issues with node_modules with installation ([3e5fe5b](https://github.com/H4ad/openrunner/commit/3e5fe5b3e49aa03974b2cb0092bd8d5965263d27))
+
 ## [0.2.7](https://github.com/H4ad/openrunner/compare/v0.2.6...v0.2.7) (2026-02-12)
 
 
