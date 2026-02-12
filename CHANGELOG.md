@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.2.2](https://github.com/H4ad/openrunner/compare/v0.2.1...v0.2.2) (2026-02-12)
+
+
+### Features
+
+* **sentry:** to catch bugs and issues ([0802438](https://github.com/H4ad/openrunner/commit/08024388f079ecf68b0cdeffa22a43434a63f7bb))
+
+
+### Bug Fixes
+
+* **markdown:** auto update rendering wrong markdown ([666cd00](https://github.com/H4ad/openrunner/commit/666cd001d12b79fea6173600ac3ae3ce59ecf8ff))
+* **sonner:** add missing css configuration ([0830024](https://github.com/H4ad/openrunner/commit/083002423cd747b113ff0e46c9ed5f0a30e13ba1))
+
+
+### Code Refactoring
+
+* **settings:** move it to a modal ([eb96aaa](https://github.com/H4ad/openrunner/commit/eb96aaad02340d2496dd216346910f66d46e428c))
+
+
+### Continuous Integration
+
+* **build:** do not run on prs ([9ffb404](https://github.com/H4ad/openrunner/commit/9ffb404de55ae6a5256ce19eb7a496791d8a7bcb))
+* **build:** fix not getting the commits ([380a1c3](https://github.com/H4ad/openrunner/commit/380a1c3ceb9f3a2d12e283774c67da113bae5ffe))
+* **workflows:** add tests in the CI ([56f1527](https://github.com/H4ad/openrunner/commit/56f1527033b8bf6739ab59e12f0847802252e769))
+
 ## [0.2.1](https://github.com/H4ad/openrunner/compare/v0.2.0...v0.2.1) (2026-02-12)
 
 
