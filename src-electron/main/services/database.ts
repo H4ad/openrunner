@@ -730,14 +730,11 @@ export class Database {
   getSettings(): AppSettings {
     const maxLogLines = this.getSetting('max_log_lines', '10000');
     const editor = this.getSetting('editor', '');
-    const linuxGpuOpt = this.getSetting('linux_gpu_optimization', '');
     const fullscreen = this.getSetting('fullscreen', '');
 
     return {
       maxLogLines: parseInt(maxLogLines, 10) || 10000,
       editor: editor || null,
-      linuxGpuOptimization:
-        linuxGpuOpt === '' ? null : linuxGpuOpt === 'true',
       fullscreen: fullscreen === '' ? null : fullscreen === 'true',
     };
   }
@@ -748,12 +745,6 @@ export class Database {
   updateSettings(settings: AppSettings): void {
     this.setSetting('max_log_lines', settings.maxLogLines.toString());
     this.setSetting('editor', settings.editor ?? '');
-    this.setSetting(
-      'linux_gpu_optimization',
-      settings.linuxGpuOptimization === null
-        ? ''
-        : settings.linuxGpuOptimization.toString()
-    );
     this.setSetting(
       'fullscreen',
       settings.fullscreen === null ? '' : settings.fullscreen.toString()

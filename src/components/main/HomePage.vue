@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, inject } from "vue";
 import { invoke, listen, type UnlistenFn } from "@/lib/api";
 import { useConfigStore } from "../../stores/config";
 import { useProcessesStore } from "../../stores/processes";
@@ -30,6 +30,7 @@ const config = useConfigStore();
 const processes = useProcessesStore();
 const logsStore = useLogsStore();
 const ui = useUiStore();
+const showSettingsDialog = inject<() => void>("showSettingsDialog");
 
 const storageStats = ref<StorageStats | null>(null);
 const loadingStorage = ref(false);
@@ -258,7 +259,7 @@ onUnmounted(() => {
           <RefreshCcw class="h-4 w-4" />
           Refresh
         </Button>
-        <Button variant="secondary" size="sm" class="gap-1" @click="ui.showSettings()">
+        <Button variant="secondary" size="sm" class="gap-1" @click="showSettingsDialog?.()">
           <GearIcon class="h-4 w-4" />
           Settings
         </Button>

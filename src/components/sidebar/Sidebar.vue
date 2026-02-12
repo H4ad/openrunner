@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, inject } from "vue";
 import { useConfigStore } from "../../stores/config";
 import { useUiStore } from "../../stores/ui";
 import { useUpdatesStore } from "../../stores/updates";
@@ -14,6 +14,7 @@ import { open } from "@/lib/dialog";
 const config = useConfigStore();
 const ui = useUiStore();
 const updatesStore = useUpdatesStore();
+const showSettingsDialog = inject<() => void>("showSettingsDialog");
 const showNewGroupDialog = ref(false);
 
 async function handleCreateGroup(name: string, directory?: string) {
@@ -75,7 +76,7 @@ async function importGroup() {
           size="icon"
           class="h-7 w-7 relative"
           title="Settings"
-          @click="ui.showSettings()"
+          @click="showSettingsDialog?.()"
         >
           <GearIcon class="h-4 w-4" />
           <!-- Update badge -->

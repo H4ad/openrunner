@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, onMounted, onUnmounted, ref, watch, provide } from "vue";
 import { listen, type UnlistenFn } from "@/lib/api";
 import { useConfigStore } from "./stores/config";
 import { useProcessesStore } from "./stores/processes";
@@ -9,6 +9,7 @@ import { useUpdatesStore } from "./stores/updates";
 import { useUiStore } from "./stores/ui";
 import Sidebar from "./components/sidebar/Sidebar.vue";
 import MainPanel from "./components/main/MainPanel.vue";
+import SettingsDialog from "./components/shared/SettingsDialog.vue";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "vue-sonner";
 
@@ -18,6 +19,12 @@ const logsStore = useLogsStore();
 const settingsStore = useSettingsStore();
 const updatesStore = useUpdatesStore();
 const ui = useUiStore();
+
+const showSettingsDialog = ref(false);
+
+provide("showSettingsDialog", () => {
+  showSettingsDialog.value = true;
+});
 
 const sidebarWidth = ref(256);
 const isResizing = ref(false);
@@ -58,22 +65,22 @@ onMounted(async () => {
   });
 });
 
-// Watch for update availability and show toast
-watch(
-  () => updatesStore.available,
-  (available) => {
-    if (available && updatesStore.updateVersion) {
-      toast.info(`Update ${updatesStore.updateVersion} available`, {
-        description: "Go to Settings to download and install.",
-        action: {
-          label: "View",
-          onClick: () => ui.showSettings(),
-        },
-        duration: 10000,
-      });
+  // Watch for update availability and show toast
+  watch(
+    () => updatesStore.available,
+    (available) => {
+      if (available && updatesStore.updateVersion) {
+        toast.info(`Update ${updatesStore.updateVersion} available`, {
+          description: "Go to Settings to download and install.",
+          action: {
+            label: "View",
+            onClick: () => showSettingsDialog.value = true,
+          },
+          duration: 10000,
+        });
+      }
     }
-  }
-);
+  );
 
 // Watch for update downloaded and show toast
 watch(
@@ -127,5 +134,11 @@ onUnmounted(() => {
 
     <!-- Toast notifications -->
     <Toaster position="bottom-right" :visible-toasts="3" />
+
+    <!-- Settings Dialog -->
+    <SettingsDialog
+      :open="showSettingsDialog"
+      @close="showSettingsDialog = false"
+    />
   </div>
 </template>

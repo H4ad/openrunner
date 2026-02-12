@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import { useConfigStore } from "./config";
 
-export type ViewMode = "home" | "project" | "groupMonitor" | "settings" | "sessionDetail";
+export type ViewMode = "home" | "project" | "groupMonitor" | "sessionDetail";
 
 export interface ProjectSelection {
   groupId: string;
@@ -140,10 +140,6 @@ export const useUiStore = defineStore("ui", () => {
     viewMode.value = "groupMonitor";
   }
 
-  function showSettings() {
-    viewMode.value = "settings";
-  }
-
   function showHome() {
     viewMode.value = "home";
   }
@@ -185,7 +181,6 @@ export const useUiStore = defineStore("ui", () => {
     clearMultiSelection,
     getSelectedProjectIds,
     showGroupMonitor,
-    showSettings,
     showHome,
     showSessionDetail,
     backToProject,

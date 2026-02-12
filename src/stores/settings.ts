@@ -6,14 +6,12 @@ import type { AppSettings } from "../types";
 export const useSettingsStore = defineStore("settings", () => {
   const maxLogLines = ref(10_000);
   const editor = ref<string | null>(null);
-  const linuxGpuOptimization = ref<boolean | null>(null);
   const fullscreen = ref<boolean | null>(null);
 
   async function load() {
     const settings = await invoke<AppSettings>("get_settings");
     maxLogLines.value = settings.maxLogLines;
     editor.value = settings.editor;
-    linuxGpuOptimization.value = settings.linuxGpuOptimization;
     fullscreen.value = settings.fullscreen;
   }
 
@@ -21,7 +19,6 @@ export const useSettingsStore = defineStore("settings", () => {
     const settings: AppSettings = {
       maxLogLines: value,
       editor: editor.value,
-      linuxGpuOptimization: linuxGpuOptimization.value,
       fullscreen: fullscreen.value,
     };
     await invoke("update_settings", { settings });
@@ -32,29 +29,16 @@ export const useSettingsStore = defineStore("settings", () => {
     const settings: AppSettings = {
       maxLogLines: maxLogLines.value,
       editor: value,
-      linuxGpuOptimization: linuxGpuOptimization.value,
       fullscreen: fullscreen.value,
     };
     await invoke("update_settings", { settings });
     editor.value = value;
   }
 
-  async function updateLinuxGpuOptimization(value: boolean) {
-    const settings: AppSettings = {
-      maxLogLines: maxLogLines.value,
-      editor: editor.value,
-      linuxGpuOptimization: value,
-      fullscreen: fullscreen.value,
-    };
-    await invoke("update_settings", { settings });
-    linuxGpuOptimization.value = value;
-  }
-
   async function updateFullscreen(value: boolean) {
     const settings: AppSettings = {
       maxLogLines: maxLogLines.value,
       editor: editor.value,
-      linuxGpuOptimization: linuxGpuOptimization.value,
       fullscreen: value,
     };
     await invoke("update_settings", { settings });
@@ -73,12 +57,10 @@ export const useSettingsStore = defineStore("settings", () => {
   return {
     maxLogLines,
     editor,
-    linuxGpuOptimization,
     fullscreen,
     load,
     updateMaxLogLines,
     updateEditor,
-    updateLinuxGpuOptimization,
     updateFullscreen,
     toggleFullscreen,
     detectSystemEditor,
