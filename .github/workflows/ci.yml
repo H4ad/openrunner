@@ -55,3 +55,6 @@ jobs:
 
       - name: Build Electron app
         run: pnpm build
+
+      - name: Check CLI dependencies are bundled
+        run: pnpm check:cli-deps

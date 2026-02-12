@@ -15,6 +15,7 @@
     "build:linux": "pnpm build && electron-builder --linux --config",
     "preview": "electron-vite preview",
     "typecheck": "tsc -p tsconfig.electron.json --noEmit",
+    "check:cli-deps": "node scripts/check-cli-deps.js",
     "frontend:dev": "vite",
     "frontend:build": "vue-tsc --noEmit && vite build",
     "rebuild": "electron-rebuild -f -w better-sqlite3,node-pty",

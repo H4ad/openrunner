@@ -5,7 +5,13 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [
+      externalizeDepsPlugin({
+        // Bundle CLI dependencies since the CLI runs standalone without node_modules
+        // better-sqlite3 is native and must stay external (copied separately)
+        exclude: ['commander', '@inquirer/prompts', 'js-yaml'],
+      }),
+    ],
     build: {
       rollupOptions: {
         input: {
