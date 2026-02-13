@@ -56,6 +56,7 @@ export function saveGroup(group: CLIGroup): void {
         name: p.name,
         command: p.command,
         autoRestart: p.autoRestart,
+        autoStartOnLaunch: p.autoStartOnLaunch,
         envVars: p.envVars,
         cwd: p.cwd || group.directory,
         projectType: p.projectType,

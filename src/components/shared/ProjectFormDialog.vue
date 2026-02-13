@@ -34,6 +34,7 @@ const props = defineProps<{
   interactive?: boolean;
   autoRestart?: boolean;
   watchPatterns?: string[];
+  autoStartOnLaunch?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -46,6 +47,7 @@ const emit = defineEmits<{
     interactive: boolean,
     autoRestart: boolean,
     watchPatterns: string[] | undefined,
+    autoStartOnLaunch: boolean,
   ];
   cancel: [];
 }>();
@@ -56,6 +58,7 @@ const cwdValue = ref("");
 const projectTypeValue = ref<ProjectType>("service");
 const interactiveValue = ref(false);
 const autoRestartValue = ref(false);
+const autoStartOnLaunchValue = ref(false);
 const watchPatternsValue = ref("");
 const envRows = ref<{ key: string; value: string }[]>([]);
 
@@ -69,6 +72,7 @@ watch(
       projectTypeValue.value = props.projectType ?? "service";
       interactiveValue.value = props.interactive ?? false;
       autoRestartValue.value = props.autoRestart ?? false;
+      autoStartOnLaunchValue.value = props.autoStartOnLaunch ?? false;
       watchPatternsValue.value = props.watchPatterns?.join(", ") ?? "";
       const entries = Object.entries(props.envVars ?? {});
       envRows.value =
@@ -123,6 +127,7 @@ function submit() {
     interactiveValue.value,
     autoRestartValue.value,
     watchPatterns,
+    autoStartOnLaunchValue.value,
   );
 }
 
@@ -185,6 +190,14 @@ function handleOpenChange(open: boolean) {
           <Label for="auto-restart" class="text-sm font-normal cursor-pointer">
             Auto-Restart on File Change
             <span class="text-muted-foreground text-xs ml-1">(only for services)</span>
+          </Label>
+        </div>
+
+        <div v-if="projectTypeValue === 'service'" class="flex items-center space-x-2">
+          <Checkbox id="auto-start-on-launch" v-model="autoStartOnLaunchValue" />
+          <Label for="auto-start-on-launch" class="text-sm font-normal cursor-pointer">
+            Auto-start on Launch
+            <span class="text-muted-foreground text-xs ml-1">(start when app opens)</span>
           </Label>
         </div>
 

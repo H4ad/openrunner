@@ -36,12 +36,27 @@ function addWatchPatternsColumn(db: Database): void {
 }
 
 /**
+ * Migration: Add auto_start_on_launch column to projects table
+ * Added: 2026-02-12
+ */
+function addAutoStartOnLaunchColumn(db: Database): void {
+  if (!columnExists(db, 'projects', 'auto_start_on_launch')) {
+    db.exec(`
+      ALTER TABLE projects 
+      ADD COLUMN auto_start_on_launch INTEGER NOT NULL DEFAULT 0
+    `);
+    console.log('[Database] Migration: Added auto_start_on_launch column to projects table');
+  }
+}
+
+/**
  * Run all migrations
  */
 export function runMigrations(db: Database): void {
   console.log('[Database] Running migrations...');
   
   addWatchPatternsColumn(db);
+  addAutoStartOnLaunchColumn(db);
   
   console.log('[Database] Migrations complete');
 }

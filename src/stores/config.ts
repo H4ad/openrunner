@@ -73,6 +73,7 @@ export const useConfigStore = defineStore("config", () => {
     interactive?: boolean,
     autoRestart?: boolean,
     watchPatterns?: string[],
+    autoStartOnLaunch?: boolean,
   ): Promise<Project> {
     // Don't include id - the backend generates it
     const projectData = {
@@ -84,6 +85,7 @@ export const useConfigStore = defineStore("config", () => {
       projectType: projectType || "service",
       interactive: interactive ?? false,
       watchPatterns,
+      autoStartOnLaunch: autoStartOnLaunch ?? false,
     };
 
     const updatedGroup = await invoke<Group>("create_project", { groupId, project: projectData });
@@ -107,6 +109,7 @@ export const useConfigStore = defineStore("config", () => {
       projectType?: ProjectType;
       interactive?: boolean;
       watchPatterns?: string[];
+      autoStartOnLaunch?: boolean;
     },
   ) {
     const group = groups.value.find((g) => g.id === groupId);
@@ -130,6 +133,7 @@ export const useConfigStore = defineStore("config", () => {
     }
     if (updates.interactive !== undefined) updatedProject.interactive = updates.interactive;
     if ('watchPatterns' in updates) updatedProject.watchPatterns = updates.watchPatterns;
+    if (updates.autoStartOnLaunch !== undefined) updatedProject.autoStartOnLaunch = updates.autoStartOnLaunch;
 
     // Save to database via command with YAML sync
     const updatedGroup = await invoke<Group>("update_project", { groupId, project: updatedProject });

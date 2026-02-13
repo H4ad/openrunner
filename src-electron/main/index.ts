@@ -22,12 +22,14 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils';
 import { registerAllHandlers } from './ipc';
 import { setMainWindow as setProcessMainWindow } from './ipc/processes';
 import { setRestartMainWindow } from './services/process-manager/restart';
+import { spawnProcess } from './services/process-manager';
 import { initializeState, getState, shutdownState } from './services/state';
 import { startStatsCollection, stopStatsCollection } from './services/stats-collector';
 import { getYamlWatcher } from './services/yaml-watcher';
 import { initAutoUpdater, checkForUpdates } from './services/auto-updater';
 import { initSystemTray, destroySystemTray, setQuitting, isAppQuitting } from './services/system-tray';
 import { getAppIcon } from './services/app-icon';
+import { syncAutostart } from './services/linux-autostart';
 import { IPC_EVENTS, IPC_CHANNELS } from '../shared/events';
 
 // Keep a global reference to prevent garbage collection
@@ -36,6 +38,51 @@ let mainWindow: BrowserWindow | null = null;
 // Set the app name to match the productName/StartupWMClass for proper Linux taskbar icon association
 // This must be done before the app is ready for GNOME/KDE to correctly match the .desktop file
 app.name = 'openrunner';
+
+/**
+ * Auto-start services that have autoStartOnLaunch enabled
+ */
+async function autoStartServices(window: BrowserWindow): Promise<void> {
+  const state = getState();
+
+  console.log('[AutoStart] Starting services with autoStartOnLaunch enabled...');
+
+  // Find all projects with autoStartOnLaunch enabled
+  for (const group of state.config.groups) {
+    for (const project of group.projects) {
+      // Only auto-start service-type projects with autoStartOnLaunch enabled
+      if (project.projectType === 'service' && project.autoStartOnLaunch) {
+        console.log(`[AutoStart] Starting ${project.name} in group ${group.name}`);
+        
+        try {
+          // Resolve working directory
+          const workingDir = project.cwd
+            ? (require('path').isAbsolute(project.cwd)
+                ? project.cwd
+                : require('path').resolve(group.directory, project.cwd))
+            : group.directory;
+
+          // Merge environment variables (group + project)
+          const envVars = { ...group.envVars, ...project.envVars };
+
+          await spawnProcess(
+            window,
+            project.id,
+            group.id,
+            project.command,
+            workingDir,
+            envVars,
+            project.autoRestart,
+            project.projectType,
+            project.interactive
+          );
+        } catch (error) {
+          console.error(`[AutoStart] Failed to start ${project.name}:`, error);
+        }
+      }
+    }
+  }
+}
 
 /**
  * Create the main application window
@@ -67,12 +114,22 @@ function createWindow(): void {
   // See: https://github.com/electron/electron/issues/49285
   mainWindow.setIcon(appIcon);
 
+  // Check if app was started with --hidden flag (for autostart with minimize to tray)
+  const startHidden = process.argv.includes('--hidden');
+
   mainWindow.on('ready-to-show', () => {
-    mainWindow?.show();
-    
     // Restore fullscreen state from settings
     const state = getState();
     const settings = state.database.getSettings();
+    
+    // Only show window if not starting hidden (or if minimize to tray is disabled)
+    if (startHidden && settings.minimizeToTray) {
+      // Keep window hidden - it's starting minimized to system tray
+      console.log('[Window] Starting hidden (minimized to tray)');
+    } else {
+      mainWindow?.show();
+    }
+    
     if (settings.fullscreen) {
       mainWindow?.setFullScreen(true);
     }
@@ -165,6 +222,14 @@ function createWindow(): void {
 
       // Initialize system tray
       initSystemTray(mainWindow);
+
+      // Sync Linux autostart state with settings
+      // This ensures the .desktop file exists if autoLaunch was enabled before this feature was added
+      const settings = state.database.getSettings();
+      syncAutostart(settings.autoLaunch, settings.minimizeToTray);
+
+      // Auto-start services if setting is enabled
+      autoStartServices(mainWindow);
     }
   });
 

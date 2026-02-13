@@ -149,3 +149,7 @@
 ## 28. Auto-Updater with GitHub Releases
 - **Status:** Done
 - **Description:** Added auto-update functionality using electron-updater with GitHub Releases as the update server. Features include: check for updates on app launch (with 10s delay), manual check via Settings page, update badge on sidebar gear icon, toast notifications when update is available/ready, download progress bar, and restart-to-update button. On macOS (without code signing), opens the GitHub releases page for manual download.
+
+## 29. Auto-Start Features
+- **Status:** Done
+- **Description:** Added two auto-start features: (1) "Start with System" setting that uses Electron's `app.setLoginItemSettings()` to auto-launch OpenRunner when the user logs in (starts hidden in tray if Minimize to Tray is enabled), and (2) "Auto-start Services on Launch" setting that automatically starts services marked with `autoStartOnLaunch: true` when the app opens. Both settings configurable via Settings dialog, per-project auto-start toggle in ProjectFormDialog (services only).

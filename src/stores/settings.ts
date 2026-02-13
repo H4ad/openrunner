@@ -9,6 +9,7 @@ export const useSettingsStore = defineStore("settings", () => {
   const fullscreen = ref<boolean | null>(null);
   const shell = ref<string | null>(null);
   const minimizeToTray = ref(false);
+  const autoLaunch = ref(false);
 
   async function load() {
     const settings = await invoke<AppSettings>("get_settings");
@@ -17,66 +18,55 @@ export const useSettingsStore = defineStore("settings", () => {
     fullscreen.value = settings.fullscreen;
     shell.value = settings.shell;
     minimizeToTray.value = settings.minimizeToTray;
+    autoLaunch.value = settings.autoLaunch;
   }
 
-  async function updateMaxLogLines(value: number) {
-    const settings: AppSettings = {
-      maxLogLines: value,
+  function buildSettings(overrides: Partial<AppSettings> = {}): AppSettings {
+    return {
+      maxLogLines: maxLogLines.value,
       editor: editor.value,
       fullscreen: fullscreen.value,
       shell: shell.value,
       minimizeToTray: minimizeToTray.value,
+      autoLaunch: autoLaunch.value,
+      ...overrides,
     };
+  }
+
+  async function updateMaxLogLines(value: number) {
+    const settings = buildSettings({ maxLogLines: value });
     await invoke("update_settings", { settings });
     maxLogLines.value = value;
   }
 
   async function updateEditor(value: string) {
-    const settings: AppSettings = {
-      maxLogLines: maxLogLines.value,
-      editor: value,
-      fullscreen: fullscreen.value,
-      shell: shell.value,
-      minimizeToTray: minimizeToTray.value,
-    };
+    const settings = buildSettings({ editor: value });
     await invoke("update_settings", { settings });
     editor.value = value;
   }
 
   async function updateFullscreen(value: boolean) {
-    const settings: AppSettings = {
-      maxLogLines: maxLogLines.value,
-      editor: editor.value,
-      fullscreen: value,
-      shell: shell.value,
-      minimizeToTray: minimizeToTray.value,
-    };
+    const settings = buildSettings({ fullscreen: value });
     await invoke("update_settings", { settings });
     fullscreen.value = value;
   }
 
   async function updateShell(value: string) {
-    const settings: AppSettings = {
-      maxLogLines: maxLogLines.value,
-      editor: editor.value,
-      fullscreen: fullscreen.value,
-      shell: value,
-      minimizeToTray: minimizeToTray.value,
-    };
+    const settings = buildSettings({ shell: value });
     await invoke("update_settings", { settings });
     shell.value = value;
   }
 
   async function updateMinimizeToTray(value: boolean) {
-    const settings: AppSettings = {
-      maxLogLines: maxLogLines.value,
-      editor: editor.value,
-      fullscreen: fullscreen.value,
-      shell: shell.value,
-      minimizeToTray: value,
-    };
+    const settings = buildSettings({ minimizeToTray: value });
     await invoke("update_settings", { settings });
     minimizeToTray.value = value;
+  }
+
+  async function updateAutoLaunch(value: boolean) {
+    const settings = buildSettings({ autoLaunch: value });
+    await invoke("update_settings", { settings });
+    autoLaunch.value = value;
   }
 
   async function toggleFullscreen() {
@@ -98,12 +88,14 @@ export const useSettingsStore = defineStore("settings", () => {
     fullscreen,
     shell,
     minimizeToTray,
+    autoLaunch,
     load,
     updateMaxLogLines,
     updateEditor,
     updateFullscreen,
     updateShell,
     updateMinimizeToTray,
+    updateAutoLaunch,
     toggleFullscreen,
     detectSystemEditor,
     detectSystemShell,

@@ -258,6 +258,7 @@ export class Database {
         projectType: row.project_type as 'task' | 'service',
         interactive: row.interactive === 1,
         watchPatterns: row.watch_patterns ? JSON.parse(row.watch_patterns) : undefined,
+        autoStartOnLaunch: row.auto_start_on_launch === 1,
       };
     });
   }
@@ -302,8 +303,8 @@ export class Database {
   private insertProject(groupId: string, project: Project): void {
     this.db
       .prepare(
-        `INSERT INTO projects (id, group_id, name, command, auto_restart, cwd, project_type, interactive, watch_patterns)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        `INSERT INTO projects (id, group_id, name, command, auto_restart, cwd, project_type, interactive, watch_patterns, auto_start_on_launch)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         project.id,
@@ -314,7 +315,8 @@ export class Database {
         project.cwd,
         project.projectType,
         project.interactive ? 1 : 0,
-        project.watchPatterns ? JSON.stringify(project.watchPatterns) : null
+        project.watchPatterns ? JSON.stringify(project.watchPatterns) : null,
+        project.autoStartOnLaunch ? 1 : 0
       );
 
     // Insert project env vars
@@ -359,6 +361,7 @@ export class Database {
       projectType: row.project_type as 'task' | 'service',
       interactive: row.interactive === 1,
       watchPatterns: row.watch_patterns ? JSON.parse(row.watch_patterns) : undefined,
+      autoStartOnLaunch: row.auto_start_on_launch === 1,
       groupId: row.group_id,
     };
   }
@@ -371,7 +374,7 @@ export class Database {
       // Update project fields
       this.db
         .prepare(
-          `UPDATE projects SET name = ?, command = ?, auto_restart = ?, cwd = ?, project_type = ?, interactive = ?, watch_patterns = ?
+          `UPDATE projects SET name = ?, command = ?, auto_restart = ?, cwd = ?, project_type = ?, interactive = ?, watch_patterns = ?, auto_start_on_launch = ?
            WHERE id = ?`
         )
         .run(
@@ -382,6 +385,7 @@ export class Database {
           project.projectType,
           project.interactive ? 1 : 0,
           project.watchPatterns ? JSON.stringify(project.watchPatterns) : null,
+          project.autoStartOnLaunch ? 1 : 0,
           project.id
         );
 
@@ -733,6 +737,7 @@ export class Database {
     const fullscreen = this.getSetting('fullscreen', '');
     const shell = this.getSetting('shell', '');
     const minimizeToTray = this.getSetting('minimize_to_tray', 'true');
+    const autoLaunch = this.getSetting('auto_launch', 'false');
 
     return {
       maxLogLines: parseInt(maxLogLines, 10) || 10000,
@@ -740,6 +745,7 @@ export class Database {
       fullscreen: fullscreen === '' ? null : fullscreen === 'true',
       shell: shell || null,
       minimizeToTray: minimizeToTray === 'true',
+      autoLaunch: autoLaunch === 'true',
     };
   }
 
@@ -755,6 +761,7 @@ export class Database {
     );
     this.setSetting('shell', settings.shell ?? '');
     this.setSetting('minimize_to_tray', settings.minimizeToTray.toString());
+    this.setSetting('auto_launch', settings.autoLaunch.toString());
   }
 
   private getSetting(key: string, defaultValue: string): string {

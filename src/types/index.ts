@@ -10,6 +10,7 @@ export interface Project {
   projectType: ProjectType;
   interactive: boolean;
   watchPatterns?: string[];
+  autoStartOnLaunch: boolean;
 }
 
 export interface Group {
@@ -47,6 +48,7 @@ export interface AppSettings {
   fullscreen: boolean | null;
   shell: string | null;
   minimizeToTray: boolean;
+  autoLaunch: boolean;
 }
 
 export interface Session {

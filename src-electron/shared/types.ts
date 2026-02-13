@@ -22,6 +22,7 @@ export interface Project {
   projectType: ProjectType;
   interactive: boolean;
   watchPatterns?: string[];
+  autoStartOnLaunch: boolean;
 }
 
 export interface Group {
@@ -100,6 +101,7 @@ export interface AppSettings {
   fullscreen: boolean | null;
   shell: string | null;
   minimizeToTray: boolean;
+  autoLaunch: boolean;
 }
 
 // ============================================================================
@@ -172,6 +174,7 @@ export interface YamlProject {
   interactive?: boolean;
   env?: Record<string, string>;
   watchPatterns?: string[];
+  autoStartOnLaunch?: boolean;
 }
 
 export interface YamlConfig {
@@ -202,6 +205,7 @@ export interface ProjectRow {
   project_type: string;
   interactive: number;
   watch_patterns: string | null;
+  auto_start_on_launch: number;
 }
 
 export interface EnvVarRow {
