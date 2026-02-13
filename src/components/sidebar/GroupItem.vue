@@ -135,8 +135,8 @@ async function handleUpdateEnvVars(envVars: Record<string, string>) {
   showEnvVarsDialog.value = false;
 }
 
-async function handleAddProject(name: string, command: string, cwd?: string, envVars?: Record<string, string>, projectType?: ProjectType, interactive: boolean = false, autoRestart: boolean = false, watchPatterns?: string[]) {
-  const project = await config.createProject(props.group.id, name, command, cwd, envVars, projectType, interactive, autoRestart, watchPatterns);
+async function handleAddProject(name: string, command: string, cwd?: string, envVars?: Record<string, string>, projectType?: ProjectType, interactive: boolean = false, autoRestart: boolean = false, watchPatterns?: string[], autoStartOnLaunch: boolean = false) {
+  const project = await config.createProject(props.group.id, name, command, cwd, envVars, projectType, interactive, autoRestart, watchPatterns, autoStartOnLaunch);
   showAddProjectDialog.value = false;
   ui.selectProject(props.group.id, project.id);
 }

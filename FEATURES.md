@@ -19,6 +19,8 @@ This document tracks the features implemented in Runner UI.
 - **Rust-Only Data Access**: Frontend reads and writes are routed through Rust commands, avoiding direct SQLite access from the UI
 - **Home Dashboard**: Full-width home view with quick actions, global metrics, storage stats, health summary, recent activity, and group overview cards
 - **Auto-Updater**: Check for updates from GitHub Releases, download and install with user-initiated flow
+- **Start with System**: Launch OpenRunner automatically when you log in (hidden in tray if Minimize to Tray is enabled)
+- **Auto-start Services on Launch**: Automatically start services marked with "Auto-start" when the app opens
 
 ## Interactive Terminal Support
 

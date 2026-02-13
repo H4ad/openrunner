@@ -158,6 +158,7 @@ async function handleEdit(
   interactive: boolean = false,
   autoRestart: boolean = false,
   watchPatterns?: string[],
+  autoStartOnLaunch: boolean = false,
 ) {
   await config.updateProject(props.group.id, props.project.id, {
     name,
@@ -168,6 +169,7 @@ async function handleEdit(
     interactive,
     autoRestart,
     watchPatterns,
+    autoStartOnLaunch,
   });
   showEditDialog.value = false;
 }
@@ -373,6 +375,7 @@ async function saveWatchPatterns() {
       :interactive="props.project.interactive"
       :auto-restart="props.project.autoRestart"
       :watch-patterns="props.project.watchPatterns"
+      :auto-start-on-launch="props.project.autoStartOnLaunch"
       @confirm="handleEdit"
       @cancel="showEditDialog = false"
     />

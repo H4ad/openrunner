@@ -46,6 +46,7 @@ const editorValue = ref(settings.editor ?? "");
 const fullscreen = ref(settings.fullscreen ?? false);
 const shellValue = ref(settings.shell ?? "");
 const minimizeToTray = ref(settings.minimizeToTray);
+const autoLaunch = ref(settings.autoLaunch);
 const detectedEditor = ref("");
 const detectedShell = ref("");
 const storageStats = ref<StorageStats | null>(null);
@@ -237,6 +238,7 @@ watch(
       fullscreen.value = settings.fullscreen ?? false;
       shellValue.value = settings.shell ?? "";
       minimizeToTray.value = settings.minimizeToTray;
+      autoLaunch.value = settings.autoLaunch;
       loadStorageStats();
       detectEditor();
       detectShell();
@@ -261,6 +263,12 @@ watch(fullscreen, async (value) => {
 watch(minimizeToTray, async (value) => {
   if (props.open && value !== settings.minimizeToTray) {
     await settings.updateMinimizeToTray(value);
+  }
+});
+
+watch(autoLaunch, async (value) => {
+  if (props.open && value !== settings.autoLaunch) {
+    await settings.updateAutoLaunch(value);
   }
 });
 </script>
@@ -327,6 +335,23 @@ watch(minimizeToTray, async (value) => {
                   @update:model-value="minimizeToTray = $event"
                 />
               </div>
+
+              <Separator />
+
+              <div class="flex items-center justify-between space-y-0">
+                <div class="space-y-0.5">
+                  <Label for="auto-launch">Start with System</Label>
+                  <p class="text-xs text-muted-foreground">
+                    Automatically start OpenRunner when you log in.
+                  </p>
+                </div>
+                <Switch
+                  id="auto-launch"
+                  :model-value="autoLaunch"
+                  @update:model-value="autoLaunch = $event"
+                />
+              </div>
+
             </CardContent>
           </Card>
         </section>

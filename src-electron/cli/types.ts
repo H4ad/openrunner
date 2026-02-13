@@ -24,6 +24,7 @@ export interface CLIProject {
   name: string;
   command: string;
   autoRestart: boolean;
+  autoStartOnLaunch: boolean;
   envVars: Record<string, string>;
   cwd: string | null;
   projectType: 'task' | 'service';
