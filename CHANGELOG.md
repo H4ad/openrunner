@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.10](https://github.com/H4ad/openrunner/compare/v0.2.9...v0.2.10) (2026-02-13)
+
+
+### Features
+
+* add system startup and per-project auto-start ([61548fd](https://github.com/H4ad/openrunner/commit/61548fd6bef66439b29dc2993fa27a4e42b0eb82))
+
 ## [0.2.9](https://github.com/H4ad/openrunner/compare/v0.2.8...v0.2.9) (2026-02-12)
 
 
